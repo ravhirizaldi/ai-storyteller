@@ -129,6 +129,9 @@ ${story.current_timeline_state}`);
   runtimeControls.push(
     `- Formatting: prose only. Inline \`*italic*\` (for internal thoughts / emphasis) and \`**bold**\` (very sparingly) are the ONLY markdown allowed. NO headings (\`#\`), NO bullet/numbered lists, NO tables, NO code blocks, NO links, NO horizontal rules. Do not wrap whole paragraphs in italic or bold.`,
   );
+  runtimeControls.push(
+    `- Anti-AI tells: MAX ONE em-dash (—) per paragraph, and only for genuine interruption/aside (prefer periods, commas, colons, semicolons, parentheses). Do NOT use em-dashes as decorative style. Ban AI-ism phrases like "a tapestry of", "a symphony of", "not just X but Y", "delve into", "it's important to note", "palpable tension", "hustle and bustle", "menari-nari", "bagaikan simfoni", "seolah waktu berhenti". No vague sensory filler ("something shifted", "the air felt different"), no tricolons-of-abstractions ("the pain, the fear, the hope"), no paragraph-ending emotional summaries ("and in that moment, he knew...").`,
+  );
 
   if (settings.sceneLock || settings.mode === "slow_scene") {
     runtimeControls.push(`- Stay inside the current scene.`);
