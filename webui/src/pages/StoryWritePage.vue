@@ -161,113 +161,167 @@
 
       <!-- Input area -->
       <div
-        class="bg-white border-t border-ink-100 px-4 md:px-6 py-3 md:py-4 flex-shrink-0"
+        class="bg-gradient-to-b from-transparent to-parchment-50/60 px-3 md:px-6 pt-2 pb-3 md:pb-4 flex-shrink-0"
       >
-        <!-- Compact Control Bar -->
-        <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
-          <div class="flex items-center gap-2 md:gap-3 flex-wrap">
-            <select
-              v-model="overrideMode"
-              class="select select-sm py-1 h-7 text-xs border-ink-200 min-w-[130px] cursor-pointer"
-              :title="modeDescription"
+        <div class="max-w-3xl mx-auto">
+          <!-- Composer card: toolbar + textarea + footer inside one rounded shell -->
+          <div class="composer overflow-hidden">
+            <!-- Top toolbar: mode / scene-lock / temp / regen -->
+            <div
+              class="flex items-center justify-between gap-2 flex-wrap px-3 pt-2.5 pb-2 border-b border-ink-100/60"
             >
-              <option value="slow_scene">Slow Scene</option>
-              <option value="balanced">Balanced</option>
-              <option value="progress_story">Progress</option>
-              <option value="cinematic">Cinematic</option>
-            </select>
-            <label
-              class="flex items-center gap-1.5 text-xs text-ink-500 cursor-pointer select-none"
-              title="Cegah AI keluar dari adegan saat ini"
-            >
-              <input
-                type="checkbox"
-                v-model="overrideSceneLock"
-                class="rounded w-3.5 h-3.5 border-ink-300 text-sage-600 focus:ring-sage-500"
+              <div class="flex items-center gap-2 flex-wrap min-w-0">
+                <div class="relative" :title="modeDescription">
+                  <select
+                    v-model="overrideMode"
+                    class="chip chip-neutral pr-7 pl-3 cursor-pointer appearance-none bg-no-repeat"
+                    style="
+                      background-image: url(&quot;data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%226%22 viewBox=%220 0 10 6%22><path fill=%22none%22 stroke=%22%23525252%22 stroke-width=%221.4%22 d=%22M1 1l4 4 4-4%22/></svg>&quot;);
+                      background-position: right 0.65rem center;
+                      background-size: 9px 5px;
+                    "
+                  >
+                    <option value="slow_scene">Slow Scene</option>
+                    <option value="balanced">Balanced</option>
+                    <option value="progress_story">Progress</option>
+                    <option value="cinematic">Cinematic</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  :class="overrideSceneLock ? 'chip-active' : 'chip-neutral'"
+                  :title="
+                    overrideSceneLock
+                      ? 'Scene lock aktif: AI tetap di adegan ini'
+                      : 'Scene lock nonaktif: AI bisa pindah adegan'
+                  "
+                  @click="overrideSceneLock = !overrideSceneLock"
+                >
+                  <Lock v-if="overrideSceneLock" class="w-3 h-3" />
+                  <LockOpen v-else class="w-3 h-3" />
+                  <span>Scene</span>
+                </button>
+                <span
+                  class="chip chip-neutral hidden sm:inline-flex"
+                  title="Temperature generasi (dari setting cerita)"
+                >
+                  <Thermometer class="w-3 h-3" />
+                  {{ overrideTemp.toFixed(2) }}
+                </span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button
+                  v-if="canRegenerate && !isGenerating"
+                  type="button"
+                  class="chip chip-neutral"
+                  @click="regenerateLast"
+                  title="Regenerasi respons AI terakhir"
+                >
+                  <RotateCcw class="w-3 h-3" />
+                  <span>Regen</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Textarea row -->
+            <div class="flex gap-2 md:gap-3 items-end px-3 pt-2.5 pb-2.5">
+              <textarea
+                v-model="userInput"
+                class="flex-1 min-h-[44px] max-h-[40vh] resize-none bg-transparent border-0 outline-none focus:ring-0 px-1 py-1 text-[15px] leading-[1.55] text-ink-900 placeholder:text-ink-400"
+                :placeholder="inputPlaceholder"
+                :disabled="isGenerating"
+                @keydown="onKeydown"
+                @input="autoResize"
+                ref="inputEl"
+                id="story-input"
+                rows="1"
               />
-              <span>Lock Scene</span>
-            </label>
-            <div class="text-xs text-ink-400 hidden md:block">
-              Temp {{ overrideTemp.toFixed(2) }}
+              <button
+                v-if="!isGenerating"
+                class="icon-btn-primary flex-shrink-0"
+                @click="generate"
+                :disabled="!userInput.trim()"
+                id="btn-generate"
+                title="Kirim (Enter)"
+              >
+                <Send class="w-4 h-4" />
+              </button>
+              <button
+                v-else
+                class="icon-btn-danger flex-shrink-0 animate-pulse"
+                @click="stopGeneration"
+                id="btn-stop"
+                title="Hentikan generasi"
+              >
+                <Square class="w-3.5 h-3.5 fill-current" />
+              </button>
+            </div>
+
+            <!-- Footer: hint + counter -->
+            <div
+              class="flex items-center justify-between gap-2 px-3 pb-2 text-[11px] text-ink-400"
+            >
+              <p class="flex items-center gap-1.5 truncate">
+                <Zap class="w-3 h-3 flex-shrink-0" />
+                <span class="truncate">
+                  <kbd
+                    class="px-1 py-0.5 rounded border border-ink-200 bg-parchment-50 text-[10px] text-ink-500"
+                    >Enter</kbd
+                  >
+                  kirim ·
+                  <kbd
+                    class="px-1 py-0.5 rounded border border-ink-200 bg-parchment-50 text-[10px] text-ink-500"
+                    >Shift+Enter</kbd
+                  >
+                  baris baru
+                </span>
+              </p>
+              <p
+                v-if="userInput.length > 0"
+                class="flex-shrink-0 tabular-nums"
+                :class="
+                  userInput.trim().length > 1500
+                    ? 'text-amber-600'
+                    : 'text-ink-400'
+                "
+              >
+                {{ userInput.trim().length }} karakter
+              </p>
             </div>
           </div>
-          <div class="flex items-center gap-2">
-            <button
-              v-if="canRegenerate && !isGenerating"
-              class="btn-ghost btn-sm text-xs"
-              @click="regenerateLast"
-              title="Regenerasi respons AI terakhir"
-            >
-              <RotateCcw class="w-3.5 h-3.5" /> Regen
-            </button>
-          </div>
-        </div>
-
-        <div class="flex gap-2 md:gap-3 items-end">
-          <textarea
-            v-model="userInput"
-            class="textarea flex-1 min-h-[52px] max-h-[40vh] resize-none text-sm leading-relaxed"
-            :placeholder="inputPlaceholder"
-            :disabled="isGenerating"
-            @keydown="onKeydown"
-            @input="autoResize"
-            ref="inputEl"
-            id="story-input"
-            rows="2"
-          />
-          <button
-            v-if="!isGenerating"
-            class="btn-primary flex-shrink-0 h-[52px] px-5"
-            @click="generate"
-            :disabled="!userInput.trim()"
-            id="btn-generate"
-            title="Kirim (Enter)"
-          >
-            <Send class="w-4 h-4" />
-          </button>
-          <button
-            v-else
-            class="btn-danger flex-shrink-0 h-[52px] px-5"
-            @click="stopGeneration"
-            id="btn-stop"
-            title="Hentikan generasi"
-          >
-            <Square class="w-4 h-4 fill-current" />
-          </button>
-        </div>
-        <div
-          class="flex items-center justify-between mt-2 text-xs text-ink-400 gap-2"
-        >
-          <p class="flex items-center gap-1 truncate">
-            <Zap class="w-3 h-3 flex-shrink-0" />
-            <span class="truncate"
-              >Streaming · Memori diproses di background</span
-            >
-          </p>
-          <p v-if="userInput.length > 0" class="flex-shrink-0">
-            {{ userInput.trim().length }} karakter
-          </p>
         </div>
       </div>
     </div>
 
-    <!-- Right sidebar (fixed on desktop, drawer on smaller screens) -->
+    <!-- Right sidebar (fixed on desktop, animated drawer on smaller screens) -->
     <aside
-      class="border-l border-ink-100 bg-white flex-shrink-0 overflow-hidden flex-col transition-transform duration-200 z-20 w-72 xl:static xl:flex xl:translate-x-0 fixed right-0 top-0 bottom-0"
+      class="border-l border-ink-100 bg-white flex-shrink-0 overflow-hidden flex-col z-20 w-72 xl:static xl:flex xl:translate-x-0 xl:shadow-none fixed right-0 top-0 bottom-0 sidebar-drawer flex"
       :class="[
         sidebarOpen
-          ? 'flex translate-x-0 shadow-2xl xl:shadow-none'
-          : 'hidden xl:flex xl:translate-x-0 translate-x-full',
+          ? 'translate-x-0 shadow-2xl xl:shadow-none'
+          : 'translate-x-full xl:translate-x-0',
       ]"
+      :aria-hidden="!sidebarOpen && !isXl"
     >
-      <StorySidebar :story-id="storyId" :story="currentStory" />
+      <div class="w-full h-full flex flex-col sidebar-drawer-content">
+        <StorySidebar :story-id="storyId" :story="currentStory" />
+      </div>
     </aside>
-    <!-- Mobile backdrop -->
-    <div
-      v-if="sidebarOpen"
-      class="fixed inset-0 bg-black/30 xl:hidden z-10"
-      @click="sidebarOpen = false"
-    />
+    <!-- Mobile backdrop with fade transition -->
+    <transition
+      enter-active-class="sidebar-backdrop"
+      leave-active-class="sidebar-backdrop"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="sidebarOpen"
+        class="fixed inset-0 bg-black/40 xl:hidden z-10"
+        @click="sidebarOpen = false"
+      />
+    </transition>
   </div>
 </template>
 
@@ -295,6 +349,9 @@ import {
   ArrowDown,
   PanelRightClose,
   PanelRightOpen,
+  Lock,
+  LockOpen,
+  Thermometer,
 } from "lucide-vue-next";
 import { useStoryStore } from "../stores/storyStore";
 import MessageBubble from "../components/story/MessageBubble.vue";
@@ -363,6 +420,15 @@ const canRegenerate = computed(() => {
 const renderedStreamingText = computed(() =>
   renderInlineMarkdown(streamingText.value),
 );
+
+// Track xl viewport (>= 1280px) so the sidebar drawer's aria-hidden stays
+// false on desktop even when sidebarOpen is false (the drawer is not
+// actually hidden on desktop — the open/close toggle only matters < xl).
+const isXl = ref(false);
+let xlMql: MediaQueryList | null = null;
+function onXlChange(e: MediaQueryListEvent | MediaQueryList) {
+  isXl.value = e.matches;
+}
 
 async function scrollToBottom(force = false) {
   // Respect user intent: if they've scrolled up mid-stream, don't yank them
@@ -482,6 +548,13 @@ onMounted(async () => {
     el.addEventListener("touchmove", onUserScrollIntent, { passive: true });
     el.addEventListener("keydown", onUserScrollIntent as EventListener);
   }
+
+  // Track xl viewport for correct aria-hidden on the sidebar drawer.
+  if (typeof window !== "undefined") {
+    xlMql = window.matchMedia("(min-width: 1280px)");
+    onXlChange(xlMql);
+    xlMql.addEventListener("change", onXlChange);
+  }
 });
 
 onBeforeUnmount(() => {
@@ -493,6 +566,10 @@ onBeforeUnmount(() => {
     el.removeEventListener("wheel", onUserScrollIntent);
     el.removeEventListener("touchmove", onUserScrollIntent);
     el.removeEventListener("keydown", onUserScrollIntent as EventListener);
+  }
+  if (xlMql) {
+    xlMql.removeEventListener("change", onXlChange);
+    xlMql = null;
   }
 });
 
