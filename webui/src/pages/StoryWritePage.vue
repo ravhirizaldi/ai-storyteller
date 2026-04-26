@@ -713,6 +713,11 @@ async function runGeneration(message: string) {
   streamingText.value = "";
   autoStick.value = true;
   lastUserMessage.value = message;
+  // Clear any prior undo toast before starting a fresh generation. A
+  // left-over snapshot from an earlier regen would otherwise point at
+  // whichever message happens to be the newest assistant after THIS
+  // turn — not the one it was captured for.
+  if (!isRegenerating) dismissUndo();
 
   // Optimistic user message
   const tempUser: StoryMessage = {
@@ -783,11 +788,12 @@ async function finalizeGeneration(text: string) {
   abortController = null;
   await scrollToBottom();
 
-  // If this finalize was a regen, arm the undo affordance with the content
-  // we snapshotted before the old pair was deleted.
-  if (isRegenerating && pendingUndoContent) {
-    armUndo(pendingUndoContent);
-  }
+  // Snapshot the undo intent immediately, but defer arming the actual
+  // toast until after the refresh has landed the real server-side
+  // message id. Clicking Undo while temp-ast-* is still in
+  // displayMessages would PATCH a fake id and 404.
+  const undoToArm =
+    isRegenerating && pendingUndoContent ? pendingUndoContent : null;
   isRegenerating = false;
   pendingUndoContent = null;
 
@@ -804,6 +810,12 @@ async function finalizeGeneration(text: string) {
     ]);
     if (!isGenerating.value) {
       displayMessages.value = [...store.sortedMessages];
+    }
+    // Now that real ids are loaded, it's safe to surface the undo toast.
+    // If the user has since started a new generation, skip — that path
+    // called dismissUndo and we don't want to re-arm stale state.
+    if (undoToArm && !isGenerating.value) {
+      armUndo(undoToArm);
     }
   }, 3000);
 }
@@ -896,7 +908,10 @@ async function undoRegenerate() {
   const lastAssistant = [...displayMessages.value]
     .reverse()
     .find((m) => m.role === "assistant");
-  if (!lastAssistant) {
+  if (!lastAssistant || lastAssistant.id.startsWith("temp-")) {
+    // Defense-in-depth: armUndo is only fired after the refresh lands,
+    // but if something races (e.g. user clicks before the next tick),
+    // skip rather than PATCH a fake id.
     dismissUndo();
     return;
   }
