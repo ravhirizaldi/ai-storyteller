@@ -635,14 +635,11 @@ function onKeydown(e: KeyboardEvent) {
 async function onEditMessage(messageId: string, newContent: string) {
   try {
     await messagesApi.update(storyId.value, messageId, newContent);
-    // Optimistic local update so the edit is visible instantly, then refresh
-    // from the server to pick up any server-side transformations.
+    // Mutate in place rather than refetch — refetching the first page
+    // would truncate paginated older messages back to the latest 10.
     const local = displayMessages.value.find((m) => m.id === messageId);
     if (local) local.content = newContent;
-    await store.fetchMessages(storyId.value);
-    if (!isGenerating.value) {
-      displayMessages.value = [...store.sortedMessages];
-    }
+    store.patchMessageContent(messageId, newContent);
   } catch (err) {
     genError.value =
       err instanceof Error ? err.message : "Gagal menyimpan perubahan.";
@@ -655,9 +652,23 @@ async function onEditMessage(messageId: string, newContent: string) {
 async function onDeleteMessage(messageId: string) {
   try {
     await messagesApi.deleteTurn(storyId.value, messageId);
-    await store.fetchMessages(storyId.value);
-    if (!isGenerating.value) {
-      displayMessages.value = [...store.sortedMessages];
+    // Mirror the server's deleteTurnStartingAt rule locally so we don't
+    // need to refetch the first page (which would nuke paginated
+    // history). If the anchor is a user message, also drop the
+    // immediately-following assistant reply.
+    const idx = displayMessages.value.findIndex((m) => m.id === messageId);
+    if (idx >= 0) {
+      const anchor = displayMessages.value[idx]!;
+      const toRemove: string[] = [anchor.id];
+      if (anchor.role === "user") {
+        const next = displayMessages.value[idx + 1];
+        if (next && next.role === "assistant") toRemove.push(next.id);
+      }
+      const removeSet = new Set(toRemove);
+      displayMessages.value = displayMessages.value.filter(
+        (m) => !removeSet.has(m.id),
+      );
+      store.removeMessages(toRemove);
     }
   } catch (err) {
     genError.value =
