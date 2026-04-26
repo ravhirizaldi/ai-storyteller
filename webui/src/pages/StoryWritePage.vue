@@ -115,7 +115,7 @@
             v-for="msg in displayMessages"
             :key="msg.id"
             :message="msg"
-            :can-delete="!isGenerating && !msg.id.startsWith('optimistic-')"
+            :can-delete="!isGenerating && !msg.id.startsWith('temp-')"
             @edit="onEditMessage"
             @delete="onDeleteMessage"
           />
