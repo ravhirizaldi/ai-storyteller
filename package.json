@@ -1,0 +1,24 @@
+{
+  "name": "ai-storyteller",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local-first AI storytelling engine powered by Grok",
+  "scripts": {
+    "dev": "concurrently --names \"BACKEND,WORKER,WEBUI\" --prefix-colors \"blue,yellow,green\" \"pnpm dev:backend\" \"pnpm dev:worker\" \"pnpm dev:webui\"",
+    "dev:backend": "pnpm --filter backend dev",
+    "dev:worker": "pnpm --filter backend worker",
+    "dev:webui": "pnpm --filter webui dev",
+    "db:init": "pnpm --filter backend db:init",
+    "build": "pnpm --filter backend build && pnpm --filter webui build",
+    "lint": "pnpm --filter backend lint && pnpm --filter webui lint",
+    "format": "prettier --write \"**/*.{ts,tsx,vue,json,md}\" --ignore-path .gitignore"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "prettier": "^3.4.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

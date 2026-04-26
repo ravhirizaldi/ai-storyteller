@@ -1,0 +1,8 @@
+packages:
+  - backend
+  - webui
+
+onlyBuiltDependencies:
+  - esbuild
+  - msgpackr-extract
+  - vue-demi

@@ -1,0 +1,60 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE/Editor files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Testing/Coverage
+coverage/
+.nyc_output
+
+# Local development
+.local
+*.env.local
+*.env.*.local
+
+# Vite/Vue specific
+.vite-inspect
+.eslintcache
+
+# Backend specific
+backend/dist/
+backend/*.tsbuildinfo
+
+# Frontend specific
+webui/dist/
+webui/node_modules/
+webui/.eslintcache
+
+# Project specific
+pnpm-lock.yaml

@@ -1,0 +1,157 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply font-sans antialiased;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-parchment-50 text-ink-900;
+    min-height: 100vh;
+  }
+
+  * {
+    @apply box-border;
+  }
+
+  ::selection {
+    @apply bg-sage-200 text-ink-900;
+  }
+
+  /* Smooth scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-parchment-100;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-ink-300 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-ink-400;
+  }
+}
+
+@layer components {
+  /* ─── Buttons ─── */
+  .btn {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm
+           transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1
+           disabled:opacity-50 disabled:cursor-not-allowed active:scale-95;
+  }
+
+  .btn-primary {
+    @apply btn bg-ink-800 text-parchment-50 hover:bg-ink-900
+           focus:ring-ink-700;
+  }
+
+  .btn-secondary {
+    @apply btn bg-parchment-100 text-ink-800 border border-ink-200
+           hover:bg-parchment-200 focus:ring-ink-300;
+  }
+
+  .btn-ghost {
+    @apply btn text-ink-700 hover:bg-parchment-100 focus:ring-ink-300;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+  }
+
+  .btn-sage {
+    @apply btn bg-sage-600 text-white hover:bg-sage-700 focus:ring-sage-500;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3 text-base;
+  }
+
+  /* ─── Cards ─── */
+  .card {
+    @apply bg-white border border-ink-100 rounded-xl shadow-sm;
+  }
+
+  .card-hover {
+    @apply card transition-all duration-150 hover:shadow-md hover:border-ink-200
+           cursor-pointer;
+  }
+
+  /* ─── Form Elements ─── */
+  .input {
+    @apply w-full px-3 py-2 bg-white border border-ink-200 rounded-lg text-sm
+           placeholder-ink-400 text-ink-900
+           focus:outline-none focus:ring-2 focus:ring-ink-400 focus:border-transparent
+           transition-all duration-150
+           disabled:bg-parchment-100 disabled:cursor-not-allowed;
+  }
+
+  .textarea {
+    @apply input resize-y min-h-[80px];
+  }
+
+  .label {
+    @apply block text-sm font-medium text-ink-700 mb-1.5;
+  }
+
+  .select {
+    @apply input appearance-none cursor-pointer;
+  }
+
+  /* ─── Prose area ─── */
+  .prose-story {
+    @apply font-serif text-base leading-relaxed text-ink-900
+           selection:bg-sage-200;
+  }
+
+  /* ─── Sidebar ─── */
+  .sidebar {
+    @apply bg-white border-r border-ink-100 flex flex-col h-screen
+           overflow-y-auto;
+  }
+
+  /* ─── Badge ─── */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-active { @apply badge bg-sage-100 text-sage-700; }
+  .badge-resolved { @apply badge bg-ink-100 text-ink-600; }
+  .badge-dormant { @apply badge bg-parchment-200 text-ink-500; }
+
+  /* ─── Tab ─── */
+  .tab-btn {
+    @apply px-3 py-2 text-xs font-medium rounded-lg transition-all duration-150
+           focus:outline-none;
+  }
+  .tab-btn-active {
+    @apply tab-btn bg-ink-800 text-white;
+  }
+  .tab-btn-inactive {
+    @apply tab-btn text-ink-600 hover:bg-parchment-100 hover:text-ink-800;
+  }
+
+  /* ─── Loading spinner ─── */
+  .spinner {
+    @apply animate-spin rounded-full border-2 border-ink-200 border-t-ink-700;
+  }
+}
+
+/* SSE streaming cursor blink */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.streaming-cursor::after {
+  content: '▋';
+  @apply text-ink-400 ml-0.5;
+  animation: cursor-blink 0.8s ease-in-out infinite;
+}
