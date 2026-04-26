@@ -120,9 +120,8 @@
             >
               <div
                 class="prose-story text-[15px] whitespace-pre-wrap streaming-cursor"
-              >
-                {{ streamingText }}
-              </div>
+                v-html="renderedStreamingText"
+              />
             </div>
           </div>
         </div>
@@ -304,6 +303,7 @@ import { streamStoryGeneration } from "../lib/stream";
 import { languageLabel } from "../lib/utils";
 import { messagesApi } from "../lib/api";
 import type { StoryMessage } from "../lib/api";
+import { renderInlineMarkdown } from "../lib/inlineMarkdown";
 
 const route = useRoute();
 const store = useStoryStore();
@@ -360,6 +360,9 @@ const canRegenerate = computed(() => {
   const last = displayMessages.value[displayMessages.value.length - 1];
   return last && last.role === "assistant" && displayMessages.value.length >= 2;
 });
+const renderedStreamingText = computed(() =>
+  renderInlineMarkdown(streamingText.value),
+);
 
 async function scrollToBottom(force = false) {
   // Respect user intent: if they've scrolled up mid-stream, don't yank them

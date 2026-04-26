@@ -126,6 +126,9 @@ ${story.current_timeline_state}`);
   runtimeControls.push(
     `- Never put new dialogue, decisions, or committed actions in the user's character's mouth beyond what they wrote.`,
   );
+  runtimeControls.push(
+    `- Formatting: prose only. Inline \`*italic*\` (for internal thoughts / emphasis) and \`**bold**\` (very sparingly) are the ONLY markdown allowed. NO headings (\`#\`), NO bullet/numbered lists, NO tables, NO code blocks, NO links, NO horizontal rules. Do not wrap whole paragraphs in italic or bold.`,
+  );
 
   if (settings.sceneLock || settings.mode === "slow_scene") {
     runtimeControls.push(`- Stay inside the current scene.`);
