@@ -184,8 +184,22 @@ export async function resetStoryProgress(id: string): Promise<void> {
     "UPDATE characters SET current_state = NULL WHERE story_id = $1",
     [id],
   );
+  // Reset dynamic scene state AND the system/generation defaults so the
+  // reset flow genuinely behaves like a fresh start — including picking up
+  // the latest DEFAULT_SYSTEM_PROMPT and balanced generation defaults.
   await query(
-    "UPDATE stories SET current_scene_state = NULL, current_timeline_state = NULL WHERE id = $1",
-    [id],
+    `UPDATE stories
+       SET current_scene_state = NULL,
+           current_timeline_state = NULL,
+           system_prompt = $2,
+           generation_mode = 'balanced',
+           temperature = 0.55,
+           max_output_tokens = 1400,
+           scene_lock = TRUE,
+           allow_time_skip = FALSE,
+           allow_location_change = FALSE,
+           allow_major_plot_progress = FALSE
+     WHERE id = $1`,
+    [id, DEFAULT_SYSTEM_PROMPT],
   );
 }
