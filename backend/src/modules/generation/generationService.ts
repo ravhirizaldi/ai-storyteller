@@ -41,9 +41,15 @@ ${story.system_prompt ?? "You are an interactive long-form story engine. Write i
 ${story.style_prompt}`);
   }
 
-  // 3. Story Bible
+  // 3. Story Bible — framed as background context, NOT a script to execute.
   if (story.story_bible) {
-    sections.push(`## STORY BIBLE
+    sections.push(`## STORY BIBLE (BACKGROUND CONTEXT — NOT A SCRIPT)
+The following is worldbuilding + backstory the story takes place inside of.
+It constrains tone, lore, and existing relationships — it does NOT compel
+you to advance its "big motivation", grand reveal, or secret plot on your
+own initiative. Only surface bible elements when the user's direction
+actually points there.
+
 ${story.story_bible}`);
   }
 
@@ -107,6 +113,18 @@ ${story.current_timeline_state}`);
   );
   runtimeControls.push(
     `- Hard cap: never exceed ~800 words; never write fewer than 2 real paragraphs.`,
+  );
+  runtimeControls.push(
+    `- Obey the user's last message literally. Dramatize ONLY what they direct. Do not invent extra actions, phone calls, mental simulations, flashbacks, or plot moves they didn't ask for.`,
+  );
+  runtimeControls.push(
+    `- Do NOT progress the Story Bible's "big motivation", grand reveal, or secret project on your own initiative. Bible context is background; only surface it when the user's direction points there.`,
+  );
+  runtimeControls.push(
+    `- If the user's prompt is mundane/static (idling, bengong, scrolling phone, smoking, coffee), the beat stays mundane. Tiny sensory detail > plot motion.`,
+  );
+  runtimeControls.push(
+    `- Never put new dialogue, decisions, or committed actions in the user's character's mouth beyond what they wrote.`,
   );
 
   if (settings.sceneLock || settings.mode === "slow_scene") {
