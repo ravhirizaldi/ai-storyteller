@@ -26,13 +26,41 @@ export async function getMessagesByStory(
 export async function getRecentMessages(
   storyId: string,
   limit = 12,
+  sinceCreatedAt?: Date | null,
 ): Promise<StoryMessage[]> {
-  const rows = await query<StoryMessage>(
-    `SELECT * FROM story_messages WHERE story_id = $1 ORDER BY created_at DESC LIMIT $2`,
-    [storyId, limit],
-  );
+  // If the story has been compacted, `sinceCreatedAt` excludes anything
+  // already folded into the summary so we don't double-count old turns
+  // in the model context.
+  const params: unknown[] = [storyId];
+  let q = `SELECT * FROM story_messages WHERE story_id = $1`;
+  if (sinceCreatedAt) {
+    q += ` AND created_at > $${params.length + 1}`;
+    params.push(sinceCreatedAt);
+  }
+  q += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+  params.push(limit);
+  const rows = await query<StoryMessage>(q, params);
   // Return in chronological order
   return rows.reverse();
+}
+
+/**
+ * Fetch all messages older than (or up to) a given cutoff — used by the
+ * compact job to build a single "story so far" summary. Returned in
+ * chronological order. `keepLastN` lets the caller preserve the most
+ * recent turns OUTSIDE the summary so the stream still has live context.
+ */
+export async function getMessagesForSummary(
+  storyId: string,
+  keepLastN: number,
+): Promise<StoryMessage[]> {
+  // Grab all messages, chop off the tail we want to keep raw.
+  const all = await query<StoryMessage>(
+    `SELECT * FROM story_messages WHERE story_id = $1 ORDER BY created_at ASC`,
+    [storyId],
+  );
+  if (all.length <= keepLastN) return [];
+  return all.slice(0, all.length - keepLastN);
 }
 
 export interface CreateMessageInput {

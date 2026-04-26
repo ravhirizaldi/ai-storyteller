@@ -220,8 +220,34 @@ export async function resetStoryProgress(id: string): Promise<void> {
            scene_lock = TRUE,
            allow_time_skip = FALSE,
            allow_location_change = FALSE,
-           allow_major_plot_progress = FALSE
+           allow_major_plot_progress = FALSE,
+           story_summary = NULL,
+           summarized_up_to_created_at = NULL
      WHERE id = $1`,
     [id, DEFAULT_SYSTEM_PROMPT],
   );
+}
+
+/**
+ * Persist a freshly-generated "story so far" summary and mark all
+ * messages up to and including `upTo` as folded into it. The messages
+ * themselves are left untouched — the UI still shows them — the
+ * generation path just skips them in favor of the summary.
+ */
+export async function applyStorySummary(
+  id: string,
+  summary: string,
+  upTo: Date,
+): Promise<Story> {
+  await getStoryById(id);
+  const rows = await query<Story>(
+    `UPDATE stories
+       SET story_summary = $2,
+           summarized_up_to_created_at = $3,
+           updated_at = NOW()
+     WHERE id = $1
+     RETURNING *`,
+    [id, summary, upTo],
+  );
+  return rows[0]!;
 }

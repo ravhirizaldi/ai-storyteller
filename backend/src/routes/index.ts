@@ -6,6 +6,7 @@ import * as messagesService from "../modules/messages/messagesService";
 import * as charactersService from "../modules/characters/charactersService";
 import * as memoriesService from "../modules/memories/memoriesService";
 import * as plotThreadsService from "../modules/plotThreads/plotThreadsService";
+import * as compactService from "../modules/generation/compactService";
 import {
   generateStoryStream,
   generateStoryText,
@@ -107,6 +108,30 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const { storyId } = req.params as { storyId: string };
     await storiesService.resetStoryProgress(storyId);
     return reply.status(200).send({ success: true });
+  });
+
+  // GET /api/stories/:storyId/context-usage — cheap token estimate for
+  // the header indicator. Returns fraction used + whether auto-compact
+  // would trigger right now.
+  app.get("/api/stories/:storyId/context-usage", async (req) => {
+    const { storyId } = req.params as { storyId: string };
+    await storiesService.getStoryById(storyId); // 404 if missing
+    return compactService.getContextUsage(storyId);
+  });
+
+  // POST /api/stories/:storyId/compact — manual trigger for the "ringkas
+  // pesan lama" button in the UI. Returns { summary, summarizedCount }
+  // or 204 when the chat is too short to meaningfully compact.
+  app.post("/api/stories/:storyId/compact", async (req, reply) => {
+    const { storyId } = req.params as { storyId: string };
+    await storiesService.getStoryById(storyId);
+    const result = await compactService.compactStory(storyId);
+    if (!result) return reply.status(204).send();
+    return {
+      summary: result.summary,
+      summarizedCount: result.summarizedMessageCount,
+      story: result.story,
+    };
   });
 
   // ─────────────────────────────────────────────

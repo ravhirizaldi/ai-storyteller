@@ -64,8 +64,26 @@ export interface Story {
   allow_time_skip: boolean;
   allow_location_change: boolean;
   allow_major_plot_progress: boolean;
+  story_summary: string | null;
+  summarized_up_to_created_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ContextUsage {
+  estimatedTokens: number;
+  budget: number;
+  fraction: number;
+  messageCount: number;
+  summarizedMessageCount: number;
+  hasSummary: boolean;
+  shouldCompact: boolean;
+}
+
+export interface CompactResult {
+  summary: string;
+  summarizedCount: number;
+  story: Story;
 }
 
 export interface StoryMessage {
@@ -130,6 +148,16 @@ export const storiesApi = {
     request<void>(`/api/stories/${id}`, { method: "DELETE" }),
   resetProgress: (id: string) =>
     request<void>(`/api/stories/${id}/reset`, { method: "POST" }),
+  contextUsage: (id: string) =>
+    request<ContextUsage>(`/api/stories/${id}/context-usage`),
+  /** Returns null (204) when the chat was too short to summarize. */
+  compact: async (id: string): Promise<CompactResult | null> => {
+    const r = await request<CompactResult | undefined>(
+      `/api/stories/${id}/compact`,
+      { method: "POST" },
+    );
+    return r ?? null;
+  },
 };
 
 // ─── Messages ───────────────────────────────────────────
