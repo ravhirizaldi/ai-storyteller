@@ -609,6 +609,7 @@ onBeforeUnmount(() => {
   abortController?.abort();
   if (refreshTimer) clearTimeout(refreshTimer);
   if (pendingScrollFrame !== null) cancelAnimationFrame(pendingScrollFrame);
+  if (undoHideTimer) clearTimeout(undoHideTimer);
   const el = scrollEl.value;
   if (el) {
     el.removeEventListener("wheel", onUserScrollIntent);
@@ -757,6 +758,12 @@ async function runGeneration(message: string) {
       );
       if (!userInput.value.trim()) userInput.value = message;
       nextTick(autoResize);
+      // Critical: clear any pending regen state so the NEXT successful
+      // generation doesn't mistakenly arm the undo toast with content
+      // that's been server-deleted. finalizeGeneration() is never called
+      // on the error path, so we have to do it here.
+      isRegenerating = false;
+      pendingUndoContent = null;
     },
   });
 }
