@@ -677,6 +677,10 @@ async function onEditMessage(messageId: string, newContent: string) {
 }
 
 async function onDeleteMessage(messageId: string) {
+  // Belt-and-suspenders: if the user deletes anything while an undo toast
+  // is live, dismiss it. undoRegenerate also guards by messageId, but
+  // removing the toast pre-emptively avoids a confusing armed UI state.
+  dismissUndo();
   try {
     await messagesApi.deleteTurn(storyId.value, messageId);
     // Mirror the server's deleteTurnStartingAt rule locally so we don't
@@ -815,7 +819,12 @@ async function finalizeGeneration(text: string) {
     // If the user has since started a new generation, skip — that path
     // called dismissUndo and we don't want to re-arm stale state.
     if (undoToArm && !isGenerating.value) {
-      armUndo(undoToArm);
+      const newestAssistant = [...displayMessages.value]
+        .reverse()
+        .find((m) => m.role === "assistant" && !m.id.startsWith("temp-"));
+      if (newestAssistant) {
+        armUndo(newestAssistant.id, undoToArm);
+      }
     }
   }, 3000);
 }
@@ -881,12 +890,16 @@ async function retryLast() {
 // When the user regenerates, we snapshot the old assistant reply so they can
 // roll back if the new one is worse. Frontend-only state — lost on reload,
 // which is an acceptable trade-off vs. persisting a history column.
-const undoSnapshot = ref<{ content: string } | null>(null);
+// Pinned to a specific messageId so a later delete / regen / out-of-band
+// mutation can't cause Undo to overwrite an unrelated assistant bubble.
+const undoSnapshot = ref<{ messageId: string; content: string } | null>(
+  null,
+);
 let undoHideTimer: ReturnType<typeof setTimeout> | null = null;
 const canUndoRegen = computed(() => !!undoSnapshot.value);
 
-function armUndo(content: string) {
-  undoSnapshot.value = { content };
+function armUndo(messageId: string, content: string) {
+  undoSnapshot.value = { messageId, content };
   if (undoHideTimer) clearTimeout(undoHideTimer);
   // Auto-dismiss after 2 minutes so the pill doesn't linger forever.
   undoHideTimer = setTimeout(() => {
@@ -902,22 +915,17 @@ function dismissUndo() {
 async function undoRegenerate() {
   const snap = undoSnapshot.value;
   if (!snap || isGenerating.value) return;
-  // Find the newest assistant message and swap its content back to the
-  // pre-regen version. We use PATCH so the message id, timestamps, and
-  // downstream memory/character extraction history stay intact.
-  const lastAssistant = [...displayMessages.value]
-    .reverse()
-    .find((m) => m.role === "assistant");
-  if (!lastAssistant || lastAssistant.id.startsWith("temp-")) {
-    // Defense-in-depth: armUndo is only fired after the refresh lands,
-    // but if something races (e.g. user clicks before the next tick),
-    // skip rather than PATCH a fake id.
+  // Look up the exact message we captured. If it's gone (e.g. the user
+  // deleted the regenerated reply from the per-bubble trash), abort
+  // instead of silently overwriting some other assistant bubble.
+  const target = displayMessages.value.find((m) => m.id === snap.messageId);
+  if (!target || target.id.startsWith("temp-")) {
     dismissUndo();
     return;
   }
   try {
-    await messagesApi.update(storyId.value, lastAssistant.id, snap.content);
-    lastAssistant.content = snap.content;
+    await messagesApi.update(storyId.value, target.id, snap.content);
+    target.content = snap.content;
     // Pull a fresh copy so any server-side normalization lands locally.
     await store.fetchMessages(storyId.value);
     if (!isGenerating.value) {
