@@ -108,8 +108,13 @@
 
   /* ─── Prose area ─── */
   .prose-story {
-    @apply font-serif text-base leading-relaxed text-ink-900
+    @apply font-serif text-[15px] leading-[1.75] text-ink-900
            selection:bg-sage-200;
+    text-wrap: pretty;
+    hyphens: auto;
+  }
+  .prose-story p + p {
+    @apply mt-3;
   }
 
   /* ─── Sidebar ─── */
@@ -123,9 +128,15 @@
     @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
   }
 
-  .badge-active { @apply badge bg-sage-100 text-sage-700; }
-  .badge-resolved { @apply badge bg-ink-100 text-ink-600; }
-  .badge-dormant { @apply badge bg-parchment-200 text-ink-500; }
+  .badge-active {
+    @apply badge bg-sage-100 text-sage-700;
+  }
+  .badge-resolved {
+    @apply badge bg-ink-100 text-ink-600;
+  }
+  .badge-dormant {
+    @apply badge bg-parchment-200 text-ink-500;
+  }
 
   /* ─── Tab ─── */
   .tab-btn {
@@ -147,11 +158,16 @@
 
 /* SSE streaming cursor blink */
 @keyframes cursor-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
 }
 .streaming-cursor::after {
-  content: '▋';
+  content: "▋";
   @apply text-ink-400 ml-0.5;
   animation: cursor-blink 0.8s ease-in-out infinite;
 }

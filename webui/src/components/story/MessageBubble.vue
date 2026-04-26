@@ -7,15 +7,23 @@
     <!-- Avatar -->
     <div
       class="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-semibold mt-1"
-      :class="message.role === 'user' ? 'bg-sage-600 text-white' : 'bg-ink-800 text-parchment-50'"
+      :class="
+        message.role === 'user'
+          ? 'bg-sage-600 text-white'
+          : 'bg-ink-800 text-parchment-50'
+      "
     >
-      {{ message.role === 'user' ? 'K' : 'AI' }}
+      {{ message.role === "user" ? "K" : "AI" }}
     </div>
 
     <!-- Bubble -->
     <div
-      class="max-w-[80%] relative"
-      :class="message.role === 'user' ? 'items-end' : 'items-start'"
+      class="relative min-w-0"
+      :class="
+        message.role === 'user'
+          ? 'max-w-[80%] items-end'
+          : 'max-w-[92%] md:max-w-[85%] flex-1 items-start'
+      "
     >
       <div
         class="rounded-2xl px-4 py-3"
@@ -26,15 +34,25 @@
         "
       >
         <!-- User: show as-is -->
-        <p v-if="message.role === 'user'" class="text-sm text-ink-800 leading-relaxed whitespace-pre-wrap">
+        <p
+          v-if="message.role === 'user'"
+          class="text-sm text-ink-800 leading-relaxed whitespace-pre-wrap break-words"
+        >
           {{ message.content }}
         </p>
         <!-- Assistant: prose style -->
-        <div v-else class="prose-story text-sm whitespace-pre-wrap" :class="{ 'streaming-cursor': isStreaming }">
+        <div
+          v-else
+          class="prose-story text-[15px] whitespace-pre-wrap break-words"
+          :class="{ 'streaming-cursor': isStreaming }"
+        >
           {{ message.content }}
         </div>
       </div>
-      <p class="text-xs text-ink-300 mt-1 px-1" :class="message.role === 'user' ? 'text-right' : 'text-left'">
+      <p
+        class="text-xs text-ink-300 mt-1 px-1"
+        :class="message.role === 'user' ? 'text-right' : 'text-left'"
+      >
         {{ formatDateTime(message.created_at) }}
       </p>
     </div>
@@ -42,19 +60,25 @@
 </template>
 
 <script setup lang="ts">
-import type { StoryMessage } from '../../lib/api'
-import { formatDateTime } from '../../lib/utils'
+import type { StoryMessage } from "../../lib/api";
+import { formatDateTime } from "../../lib/utils";
 
 defineProps<{
-  message: StoryMessage
-  isStreaming?: boolean
-}>()
+  message: StoryMessage;
+  isStreaming?: boolean;
+}>();
 </script>
 
 <style scoped>
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .animate-fade-in {
   animation: fade-in 0.2s ease-out;

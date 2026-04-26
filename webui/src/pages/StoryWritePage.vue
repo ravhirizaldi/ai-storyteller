@@ -1,51 +1,99 @@
 <template>
-  <div class="flex flex-1 overflow-hidden">
+  <div class="flex flex-1 overflow-hidden relative">
     <!-- Main writing area -->
-    <div class="flex flex-col flex-1 overflow-hidden">
+    <div class="flex flex-col flex-1 overflow-hidden min-w-0">
       <!-- Header -->
-      <div class="bg-white border-b border-ink-100 px-6 py-3 flex items-center justify-between flex-shrink-0">
-        <div class="flex items-center gap-3 min-w-0">
-          <RouterLink to="/" class="btn-ghost btn-sm p-1.5">
+      <div
+        class="bg-white border-b border-ink-100 px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0 gap-2"
+      >
+        <div class="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+          <RouterLink
+            to="/"
+            class="btn-ghost btn-sm p-1.5"
+            title="Kembali ke daftar cerita"
+          >
             <ArrowLeft class="w-4 h-4" />
           </RouterLink>
-          <div class="min-w-0">
+          <div class="min-w-0 flex-1">
             <h1 class="font-semibold text-ink-900 text-sm truncate">
-              {{ currentStory?.title ?? 'Memuat...' }}
+              {{ currentStory?.title ?? "Memuat..." }}
             </h1>
             <div class="flex items-center gap-2">
-              <span v-if="currentStory?.genre" class="text-xs text-ink-400">{{ currentStory.genre }}</span>
-              <span v-if="currentStory?.language" class="text-xs text-ink-300">·</span>
-              <span v-if="currentStory?.language" class="text-xs text-ink-400">{{ languageLabel(currentStory.language) }}</span>
+              <span
+                v-if="currentStory?.genre"
+                class="text-xs text-ink-400 truncate"
+                >{{ currentStory.genre }}</span
+              >
+              <span
+                v-if="currentStory?.language"
+                class="text-xs text-ink-300 hidden sm:inline"
+                >·</span
+              >
+              <span
+                v-if="currentStory?.language"
+                class="text-xs text-ink-400 hidden sm:inline"
+                >{{ languageLabel(currentStory.language) }}</span
+              >
             </div>
           </div>
         </div>
-        <div class="flex items-center gap-2">
-          <RouterLink :to="`/stories/${storyId}/bible`" class="btn-secondary btn-sm">
+        <div class="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+          <RouterLink
+            :to="`/stories/${storyId}/bible`"
+            class="btn-secondary btn-sm hidden sm:inline-flex"
+          >
             <BookMarked class="w-3.5 h-3.5" /> Bible
           </RouterLink>
-          <RouterLink :to="`/stories/${storyId}/settings`" class="btn-ghost btn-sm p-2">
+          <RouterLink
+            :to="`/stories/${storyId}/settings`"
+            class="btn-ghost btn-sm p-2"
+            title="Pengaturan cerita"
+          >
             <Settings class="w-4 h-4" />
           </RouterLink>
+          <button
+            class="btn-ghost btn-sm p-2 xl:hidden"
+            @click="sidebarOpen = !sidebarOpen"
+            :title="sidebarOpen ? 'Tutup panel' : 'Buka panel'"
+          >
+            <PanelRightClose v-if="sidebarOpen" class="w-4 h-4" />
+            <PanelRightOpen v-else class="w-4 h-4" />
+          </button>
         </div>
       </div>
 
       <!-- Messages area -->
-      <div class="flex-1 overflow-y-auto px-6 py-6" ref="scrollEl" @scroll="handleScroll">
+      <div
+        class="flex-1 overflow-y-auto px-4 md:px-8 py-6 relative"
+        ref="scrollEl"
+        @scroll="handleScroll"
+      >
         <div v-if="loadingMessages" class="flex justify-center py-12">
           <div class="spinner w-6 h-6" />
         </div>
 
-        <div v-else-if="displayMessages.length === 0 && !streamingText" class="flex flex-col items-center justify-center h-full gap-4 text-center py-12">
-          <div class="w-14 h-14 rounded-2xl bg-parchment-200 flex items-center justify-center">
-            <Feather class="w-7 h-7 text-ink-400" />
+        <div
+          v-else-if="displayMessages.length === 0 && !streamingText"
+          class="flex flex-col items-center justify-center h-full gap-4 text-center py-12 max-w-md mx-auto"
+        >
+          <div
+            class="w-16 h-16 rounded-2xl bg-parchment-200 flex items-center justify-center"
+          >
+            <Feather class="w-8 h-8 text-ink-400" />
           </div>
           <div>
-            <p class="font-semibold text-ink-700">Mulai ceritamu</p>
-            <p class="text-sm text-ink-400 mt-1">Tulis arahan di bawah untuk memulai</p>
+            <p class="font-semibold text-ink-800 text-lg">Mulai ceritamu</p>
+            <p class="text-sm text-ink-500 mt-1.5 leading-relaxed">
+              Tulis arahan di bawah untuk menghasilkan adegan pembuka. Coba
+              sesuatu seperti
+              <em class="italic"
+                >"Lanjutkan dari perspektif Aria saat ia membuka pintu"</em
+              >.
+            </p>
           </div>
         </div>
 
-        <div v-else>
+        <div v-else class="max-w-3xl mx-auto w-full">
           <div v-if="loadingOlder" class="flex justify-center py-4">
             <div class="spinner w-5 h-5 text-ink-300" />
           </div>
@@ -57,248 +105,463 @@
         </div>
 
         <!-- Streaming placeholder -->
-        <div v-if="streamingText" class="flex gap-3 mb-6">
-          <div class="w-7 h-7 rounded-full bg-ink-800 flex items-center justify-center text-xs font-semibold text-parchment-50 mt-1 flex-shrink-0">
+        <div
+          v-if="streamingText"
+          class="flex gap-3 mb-6 max-w-3xl mx-auto w-full"
+        >
+          <div
+            class="w-7 h-7 rounded-full bg-ink-800 flex items-center justify-center text-xs font-semibold text-parchment-50 mt-1 flex-shrink-0"
+          >
             AI
           </div>
-          <div class="max-w-[80%]">
-            <div class="bg-white border border-ink-100 rounded-2xl rounded-tl-sm px-4 py-3">
-              <div class="prose-story text-sm whitespace-pre-wrap streaming-cursor">{{ streamingText }}</div>
+          <div class="flex-1 min-w-0">
+            <div
+              class="bg-white border border-ink-100 rounded-2xl rounded-tl-sm px-4 py-3"
+            >
+              <div
+                class="prose-story text-[15px] whitespace-pre-wrap streaming-cursor"
+              >
+                {{ streamingText }}
+              </div>
             </div>
           </div>
         </div>
+
+        <!-- Jump-to-bottom button -->
+        <button
+          v-if="showJumpToBottom"
+          class="sticky bottom-3 float-right mr-2 bg-ink-800 text-parchment-50 rounded-full shadow-lg p-2 hover:bg-ink-900 transition-colors"
+          @click="() => scrollToBottom(true)"
+          title="Loncat ke pesan terbaru"
+        >
+          <ArrowDown class="w-4 h-4" />
+        </button>
       </div>
 
       <!-- Error banner -->
-      <div v-if="genError" class="mx-6 mb-2 rounded-lg bg-red-50 border border-red-200 px-4 py-3 flex items-center gap-2">
+      <div
+        v-if="genError"
+        class="mx-4 md:mx-6 mb-2 rounded-lg bg-red-50 border border-red-200 px-4 py-3 flex items-center gap-2"
+      >
         <AlertCircle class="w-4 h-4 text-red-500 flex-shrink-0" />
         <p class="text-sm text-red-700 flex-1">{{ genError }}</p>
-        <button class="text-red-500 hover:text-red-700" @click="genError = null">
+        <button
+          v-if="lastUserMessage"
+          class="text-xs text-red-700 hover:text-red-900 font-medium whitespace-nowrap"
+          @click="retryLast"
+        >
+          Coba lagi
+        </button>
+        <button
+          class="text-red-500 hover:text-red-700"
+          @click="genError = null"
+        >
           <X class="w-4 h-4" />
         </button>
       </div>
 
       <!-- Input area -->
-      <div class="bg-white border-t border-ink-100 px-6 py-4 flex-shrink-0">
+      <div
+        class="bg-white border-t border-ink-100 px-4 md:px-6 py-3 md:py-4 flex-shrink-0"
+      >
         <!-- Compact Control Bar -->
-        <div class="flex items-center justify-between mb-2">
-          <div class="flex items-center gap-3">
-            <select v-model="overrideMode" class="select select-sm py-1 h-7 text-xs border-ink-200 min-w-[120px]">
+        <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
+          <div class="flex items-center gap-2 md:gap-3 flex-wrap">
+            <select
+              v-model="overrideMode"
+              class="select select-sm py-1 h-7 text-xs border-ink-200 min-w-[130px] cursor-pointer"
+              :title="modeDescription"
+            >
               <option value="slow_scene">Slow Scene</option>
               <option value="balanced">Balanced</option>
               <option value="progress_story">Progress</option>
               <option value="cinematic">Cinematic</option>
             </select>
-            <label class="flex items-center gap-1.5 text-xs text-ink-500 cursor-pointer" title="Scene Lock">
-              <input type="checkbox" v-model="overrideSceneLock" class="rounded w-3.5 h-3.5 border-ink-300 text-sage-600 focus:ring-sage-500" />
+            <label
+              class="flex items-center gap-1.5 text-xs text-ink-500 cursor-pointer select-none"
+              title="Cegah AI keluar dari adegan saat ini"
+            >
+              <input
+                type="checkbox"
+                v-model="overrideSceneLock"
+                class="rounded w-3.5 h-3.5 border-ink-300 text-sage-600 focus:ring-sage-500"
+              />
               <span>Lock Scene</span>
             </label>
-            <div class="text-xs text-ink-500 ml-2">
-              Temp: {{ overrideTemp }}
+            <div class="text-xs text-ink-400 hidden md:block">
+              Temp {{ overrideTemp.toFixed(2) }}
             </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              v-if="canRegenerate && !isGenerating"
+              class="btn-ghost btn-sm text-xs"
+              @click="regenerateLast"
+              title="Regenerasi respons AI terakhir"
+            >
+              <RotateCcw class="w-3.5 h-3.5" /> Regen
+            </button>
           </div>
         </div>
 
-        <div class="flex gap-3 items-end">
+        <div class="flex gap-2 md:gap-3 items-end">
           <textarea
             v-model="userInput"
-            class="textarea flex-1 min-h-[52px] max-h-40 resize-none text-sm"
-            placeholder="Tulis arahan ceritamu... (Enter untuk generate, Shift+Enter untuk baris baru)"
+            class="textarea flex-1 min-h-[52px] max-h-[40vh] resize-none text-sm leading-relaxed"
+            :placeholder="inputPlaceholder"
             :disabled="isGenerating"
             @keydown="onKeydown"
+            @input="autoResize"
+            ref="inputEl"
             id="story-input"
             rows="2"
           />
           <button
+            v-if="!isGenerating"
             class="btn-primary flex-shrink-0 h-[52px] px-5"
             @click="generate"
-            :disabled="isGenerating || !userInput.trim()"
+            :disabled="!userInput.trim()"
             id="btn-generate"
+            title="Kirim (Enter)"
           >
-            <span v-if="isGenerating" class="spinner w-4 h-4" />
-            <Send v-else class="w-4 h-4" />
+            <Send class="w-4 h-4" />
+          </button>
+          <button
+            v-else
+            class="btn-danger flex-shrink-0 h-[52px] px-5"
+            @click="stopGeneration"
+            id="btn-stop"
+            title="Hentikan generasi"
+          >
+            <Square class="w-4 h-4 fill-current" />
           </button>
         </div>
-        <p class="text-xs text-ink-400 mt-2 flex items-center gap-1">
-          <Zap class="w-3 h-3" />
-          Streaming aktif · Memory diproses di background setelah generasi
-        </p>
+        <div
+          class="flex items-center justify-between mt-2 text-xs text-ink-400 gap-2"
+        >
+          <p class="flex items-center gap-1 truncate">
+            <Zap class="w-3 h-3 flex-shrink-0" />
+            <span class="truncate"
+              >Streaming · Memori diproses di background</span
+            >
+          </p>
+          <p v-if="userInput.length > 0" class="flex-shrink-0">
+            {{ userInput.trim().length }} karakter
+          </p>
+        </div>
       </div>
     </div>
 
-    <!-- Right sidebar -->
-    <div class="w-72 border-l border-ink-100 bg-white flex-shrink-0 overflow-hidden flex flex-col">
+    <!-- Right sidebar (fixed on desktop, drawer on smaller screens) -->
+    <aside
+      class="border-l border-ink-100 bg-white flex-shrink-0 overflow-hidden flex-col transition-transform duration-200 z-20 w-72 xl:static xl:flex xl:translate-x-0 fixed right-0 top-0 bottom-0"
+      :class="[
+        sidebarOpen
+          ? 'flex translate-x-0 shadow-2xl xl:shadow-none'
+          : 'hidden xl:flex xl:translate-x-0 translate-x-full',
+      ]"
+    >
       <StorySidebar :story-id="storyId" :story="currentStory" />
-    </div>
+    </aside>
+    <!-- Mobile backdrop -->
+    <div
+      v-if="sidebarOpen"
+      class="fixed inset-0 bg-black/30 xl:hidden z-10"
+      @click="sidebarOpen = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
-import { ArrowLeft, BookMarked, Settings, Feather, Send, AlertCircle, X, Zap } from 'lucide-vue-next'
-import { useStoryStore } from '../stores/storyStore'
-import MessageBubble from '../components/story/MessageBubble.vue'
-import StorySidebar from '../components/story/StorySidebar.vue'
-import { streamStoryGeneration } from '../lib/stream'
-import { languageLabel } from '../lib/utils'
-import type { StoryMessage } from '../lib/api'
+import {
+  ref,
+  computed,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+  watch,
+} from "vue";
+import { useRoute, RouterLink } from "vue-router";
+import {
+  ArrowLeft,
+  BookMarked,
+  Settings,
+  Feather,
+  Send,
+  AlertCircle,
+  X,
+  Zap,
+  Square,
+  RotateCcw,
+  ArrowDown,
+  PanelRightClose,
+  PanelRightOpen,
+} from "lucide-vue-next";
+import { useStoryStore } from "../stores/storyStore";
+import MessageBubble from "../components/story/MessageBubble.vue";
+import StorySidebar from "../components/story/StorySidebar.vue";
+import { streamStoryGeneration } from "../lib/stream";
+import { languageLabel } from "../lib/utils";
+import type { StoryMessage } from "../lib/api";
 
-const route = useRoute()
-const store = useStoryStore()
+const route = useRoute();
+const store = useStoryStore();
 
-const storyId = computed(() => route.params.storyId as string)
-const currentStory = computed(() => store.currentStory)
+const storyId = computed(() => route.params.storyId as string);
+const currentStory = computed(() => store.currentStory);
 
 // Local list of messages to display (includes optimistic entries)
-const displayMessages = ref<StoryMessage[]>([])
+const displayMessages = ref<StoryMessage[]>([]);
 
-const loadingMessages = ref(false)
-const userInput = ref('')
-const isGenerating = ref(false)
-const streamingText = ref('')
-const genError = ref<string | null>(null)
-const scrollEl = ref<HTMLElement | null>(null)
-const loadingOlder = ref(false)
+const loadingMessages = ref(false);
+const userInput = ref("");
+const isGenerating = ref(false);
+const streamingText = ref("");
+const genError = ref<string | null>(null);
+const scrollEl = ref<HTMLElement | null>(null);
+const inputEl = ref<HTMLTextAreaElement | null>(null);
+const loadingOlder = ref(false);
+const lastUserMessage = ref<string | null>(null);
+const sidebarOpen = ref(false);
+const showJumpToBottom = ref(false);
+const autoStick = ref(true);
+let abortController: AbortController | null = null;
+let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
-const overrideMode = ref('slow_scene')
-const overrideSceneLock = ref(true)
-const overrideTemp = ref(0.45)
+const overrideMode = ref("balanced");
+const overrideSceneLock = ref(true);
+const overrideTemp = ref(0.55);
 
-async function scrollToBottom() {
-  await nextTick()
+const modeDescriptions: Record<string, string> = {
+  slow_scene:
+    "Slow Scene — Fokus atmosfer, dialog, dan nuansa. Plot hampir tidak maju.",
+  balanced:
+    "Balanced — Progres cerita moderat, beat yang memuaskan tiap giliran.",
+  progress_story:
+    "Progress — Plot maju lebih terasa, tetap satu beat per giliran.",
+  cinematic: "Cinematic — Deskripsi kaya, framing dramatis, adegan visual.",
+};
+const modeDescription = computed(
+  () => modeDescriptions[overrideMode.value] ?? "",
+);
+const inputPlaceholder = computed(() =>
+  displayMessages.value.length === 0
+    ? "Tulis adegan pembuka... (Enter untuk kirim, Shift+Enter baris baru)"
+    : "Lanjutkan ceritamu... (Enter untuk kirim, Shift+Enter baris baru)",
+);
+const canRegenerate = computed(() => {
+  const last = displayMessages.value[displayMessages.value.length - 1];
+  return last && last.role === "assistant" && displayMessages.value.length >= 2;
+});
+
+async function scrollToBottom(force = false) {
+  if (!autoStick.value && !force) return;
+  await nextTick();
   if (scrollEl.value) {
-    scrollEl.value.scrollTop = scrollEl.value.scrollHeight
+    scrollEl.value.scrollTop = scrollEl.value.scrollHeight;
   }
 }
 
+function autoResize() {
+  const el = inputEl.value;
+  if (!el) return;
+  el.style.height = "auto";
+  const maxH = Math.max(160, Math.floor(window.innerHeight * 0.4));
+  el.style.height = Math.min(el.scrollHeight, maxH) + "px";
+}
+
 async function handleScroll() {
-  if (!scrollEl.value || loadingOlder.value || !store.hasMoreMessages) return
-  
-  if (scrollEl.value.scrollTop < 100) {
-    loadingOlder.value = true
-    const oldHeight = scrollEl.value.scrollHeight
-    
-    const oldestMsg = store.sortedMessages[0]
+  if (!scrollEl.value) return;
+  const el = scrollEl.value;
+  const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  autoStick.value = nearBottom;
+  showJumpToBottom.value = !nearBottom && displayMessages.value.length > 0;
+
+  if (loadingOlder.value || !store.hasMoreMessages) return;
+
+  if (el.scrollTop < 100) {
+    loadingOlder.value = true;
+    const oldHeight = el.scrollHeight;
+
+    const oldestMsg = store.sortedMessages[0];
     if (oldestMsg) {
-      await store.fetchMessages(storyId.value, oldestMsg.id)
-      
-      await nextTick()
+      await store.fetchMessages(storyId.value, oldestMsg.id);
+
+      await nextTick();
       if (scrollEl.value) {
-        const newHeight = scrollEl.value.scrollHeight
-        scrollEl.value.scrollTop = newHeight - oldHeight + scrollEl.value.scrollTop
+        const newHeight = scrollEl.value.scrollHeight;
+        scrollEl.value.scrollTop =
+          newHeight - oldHeight + scrollEl.value.scrollTop;
       }
     }
-    
-    loadingOlder.value = false
+
+    loadingOlder.value = false;
   }
 }
 
 onMounted(async () => {
-  loadingMessages.value = true
+  loadingMessages.value = true;
   await Promise.all([
     store.fetchStory(storyId.value),
     store.fetchMessages(storyId.value),
     store.fetchCharacters(storyId.value),
     store.fetchMemories(storyId.value),
     store.fetchPlotThreads(storyId.value),
-  ])
-  
-  const s = store.currentStory
+  ]);
+
+  const s = store.currentStory;
   if (s) {
-    overrideMode.value = s.generation_mode || 'slow_scene'
-    overrideSceneLock.value = s.scene_lock ?? true
-    overrideTemp.value = Number(s.temperature) || 0.45
+    overrideMode.value = s.generation_mode || "balanced";
+    overrideSceneLock.value = s.scene_lock ?? true;
+    overrideTemp.value = Number(s.temperature) || 0.55;
   }
 
-  displayMessages.value = [...store.sortedMessages]
-  loadingMessages.value = false
-  await scrollToBottom()
-})
+  displayMessages.value = [...store.sortedMessages];
+  loadingMessages.value = false;
+  await scrollToBottom(true);
+  nextTick(autoResize);
+});
 
-watch(() => store.sortedMessages, (msgs) => {
-  displayMessages.value = [...msgs]
-}, { deep: true })
+onBeforeUnmount(() => {
+  abortController?.abort();
+  if (refreshTimer) clearTimeout(refreshTimer);
+});
+
+watch(
+  () => store.sortedMessages,
+  (msgs) => {
+    // Only overwrite if we're not mid-stream — otherwise optimistic bubbles flicker.
+    if (!isGenerating.value) {
+      displayMessages.value = [...msgs];
+    }
+  },
+  { deep: true },
+);
 
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault()
-    generate()
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    generate();
   }
 }
 
-async function generate() {
-  const message = userInput.value.trim()
-  if (!message || isGenerating.value) return
+function stopGeneration() {
+  abortController?.abort();
+}
 
-  genError.value = null
-  isGenerating.value = true
-  streamingText.value = ''
-  userInput.value = ''
+async function runGeneration(message: string) {
+  genError.value = null;
+  isGenerating.value = true;
+  streamingText.value = "";
+  autoStick.value = true;
+  lastUserMessage.value = message;
 
   // Optimistic user message
   const tempUser: StoryMessage = {
     id: `temp-user-${Date.now()}`,
     story_id: storyId.value,
-    role: 'user',
+    role: "user",
     content: message,
     token_count: null,
     created_at: new Date().toISOString(),
-  }
-  displayMessages.value.push(tempUser)
-  await scrollToBottom()
+  };
+  displayMessages.value.push(tempUser);
+  await scrollToBottom(true);
 
-  let fullText = ''
+  let fullText = "";
+  abortController = new AbortController();
 
   await streamStoryGeneration(storyId.value, message, {
+    signal: abortController.signal,
     generationOverride: {
       mode: overrideMode.value,
       temperature: overrideTemp.value,
       sceneLock: overrideSceneLock.value,
     },
     onChunk(chunk) {
-      fullText += chunk
-      streamingText.value = fullText
-      scrollToBottom()
+      fullText += chunk;
+      streamingText.value = fullText;
+      scrollToBottom();
     },
     async onDone() {
-      // Create optimistic assistant message
-      const tempAssistant: StoryMessage = {
-        id: `temp-ast-${Date.now()}`,
-        story_id: storyId.value,
-        role: 'assistant',
-        content: fullText,
-        token_count: null,
-        created_at: new Date().toISOString(),
-      }
-      displayMessages.value.push(tempAssistant)
-
-      streamingText.value = ''
-      isGenerating.value = false
-      await scrollToBottom()
-
-      // Refresh messages from server after a short delay to ensure backend DB write completes
-      setTimeout(async () => {
-        await store.fetchMessages(storyId.value)
-        // Only update if we're not currently generating another message
-        if (!isGenerating.value) {
-          displayMessages.value = [...store.sortedMessages]
-        }
-      }, 1500)
-
-      // Refresh story state (background jobs may have updated scene state)
-      setTimeout(async () => {
-        await store.fetchStory(storyId.value)
-        await store.fetchMemories(storyId.value)
-      }, 4000)
+      finalizeGeneration(fullText);
+    },
+    onAbort() {
+      // Keep whatever was streamed so far — the server saves it too.
+      finalizeGeneration(fullText || "[generasi dihentikan]");
     },
     onError(err) {
-      genError.value = err.message
-      isGenerating.value = false
-      streamingText.value = ''
-      // Remove optimistic message
-      displayMessages.value = displayMessages.value.filter((m) => m.id !== tempUser.id)
+      genError.value = err.message;
+      isGenerating.value = false;
+      streamingText.value = "";
+      // Remove optimistic user message so the user can retry from input.
+      displayMessages.value = displayMessages.value.filter(
+        (m) => m.id !== tempUser.id,
+      );
+      if (!userInput.value.trim()) userInput.value = message;
+      nextTick(autoResize);
     },
-  })
+  });
+}
+
+async function finalizeGeneration(text: string) {
+  const tempAssistant: StoryMessage = {
+    id: `temp-ast-${Date.now()}`,
+    story_id: storyId.value,
+    role: "assistant",
+    content: text,
+    token_count: null,
+    created_at: new Date().toISOString(),
+  };
+  displayMessages.value.push(tempAssistant);
+  streamingText.value = "";
+  isGenerating.value = false;
+  abortController = null;
+  await scrollToBottom();
+
+  // Single debounced refresh. Background memory job is async on the backend —
+  // give it a moment, then resync story/messages/memories once.
+  if (refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(async () => {
+    if (isGenerating.value) return;
+    await Promise.all([
+      store.fetchMessages(storyId.value),
+      store.fetchStory(storyId.value),
+      store.fetchMemories(storyId.value),
+      store.fetchPlotThreads(storyId.value),
+    ]);
+    if (!isGenerating.value) {
+      displayMessages.value = [...store.sortedMessages];
+    }
+  }, 3000);
+}
+
+async function generate() {
+  const message = userInput.value.trim();
+  if (!message || isGenerating.value) return;
+  userInput.value = "";
+  nextTick(autoResize);
+  await runGeneration(message);
+}
+
+async function retryLast() {
+  if (!lastUserMessage.value || isGenerating.value) return;
+  const msg = lastUserMessage.value;
+  genError.value = null;
+  await runGeneration(msg);
+}
+
+async function regenerateLast() {
+  if (isGenerating.value) return;
+  // Find the last user message in the conversation.
+  const msgs = [...displayMessages.value];
+  let i = msgs.length - 1;
+  while (i >= 0 && msgs[i]!.role !== "user") i--;
+  if (i < 0) return;
+  const userMsg = msgs[i]!;
+  // Drop the trailing assistant reply from the display so the regenerated one
+  // takes its place visually.
+  displayMessages.value = msgs.slice(0, i);
+  await runGeneration(userMsg.content);
 }
 </script>

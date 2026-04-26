@@ -1,7 +1,9 @@
 <template>
   <div class="flex-1 overflow-y-auto">
     <!-- Header -->
-    <div class="sticky top-0 bg-parchment-50/95 backdrop-blur-sm border-b border-ink-100 px-8 py-5 z-10">
+    <div
+      class="sticky top-0 bg-parchment-50/95 backdrop-blur-sm border-b border-ink-100 px-8 py-5 z-10"
+    >
       <div class="flex items-center gap-3">
         <button class="btn-ghost btn-sm p-2" @click="router.back()">
           <ArrowLeft class="w-4 h-4" />
@@ -17,7 +19,11 @@
       <form @submit.prevent="create" class="space-y-6">
         <!-- Basic Info -->
         <div class="card p-6 space-y-4">
-          <h2 class="font-semibold text-ink-800 text-sm uppercase tracking-wider">Informasi Dasar</h2>
+          <h2
+            class="font-semibold text-ink-800 text-sm uppercase tracking-wider"
+          >
+            Informasi Dasar
+          </h2>
 
           <div>
             <label class="label" for="story-title">Judul Cerita *</label>
@@ -42,7 +48,11 @@
             </div>
             <div>
               <label class="label" for="story-language">Bahasa</label>
-              <select id="story-language" v-model="form.language" class="select">
+              <select
+                id="story-language"
+                v-model="form.language"
+                class="select"
+              >
                 <option value="id">🇮🇩 Indonesia</option>
                 <option value="en">🇬🇧 English</option>
               </select>
@@ -52,7 +62,11 @@
 
         <!-- Story Bible -->
         <div class="card p-6 space-y-4">
-          <h2 class="font-semibold text-ink-800 text-sm uppercase tracking-wider">Story Bible</h2>
+          <h2
+            class="font-semibold text-ink-800 text-sm uppercase tracking-wider"
+          >
+            Story Bible
+          </h2>
           <div>
             <label class="label" for="story-bible">Story Bible</label>
             <textarea
@@ -76,8 +90,16 @@
         <!-- AI Prompt -->
         <div class="card p-6 space-y-4">
           <div class="flex items-center justify-between">
-            <h2 class="font-semibold text-ink-800 text-sm uppercase tracking-wider">System Prompt AI</h2>
-            <button type="button" class="text-xs text-sage-600 hover:text-sage-700" @click="resetSystemPrompt">
+            <h2
+              class="font-semibold text-ink-800 text-sm uppercase tracking-wider"
+            >
+              System Prompt AI
+            </h2>
+            <button
+              type="button"
+              class="text-xs text-sage-600 hover:text-sage-700"
+              @click="resetSystemPrompt"
+            >
               Gunakan Default
             </button>
           </div>
@@ -91,7 +113,9 @@
             />
           </div>
           <div>
-            <label class="label" for="style-prompt">Style Prompt (opsional)</label>
+            <label class="label" for="style-prompt"
+              >Style Prompt (opsional)</label
+            >
             <textarea
               id="style-prompt"
               v-model="form.stylePrompt"
@@ -102,17 +126,27 @@
         </div>
 
         <!-- Error -->
-        <div v-if="error" class="rounded-lg bg-red-50 border border-red-200 p-4">
+        <div
+          v-if="error"
+          class="rounded-lg bg-red-50 border border-red-200 p-4"
+        >
           <p class="text-sm text-red-700">{{ error }}</p>
         </div>
 
         <!-- Submit -->
         <div class="flex gap-3 justify-end">
-          <button type="button" class="btn-secondary" @click="router.back()">Batal</button>
-          <button type="submit" class="btn-primary btn-lg" :disabled="submitting || !form.title" id="btn-create-story">
+          <button type="button" class="btn-secondary" @click="router.back()">
+            Batal
+          </button>
+          <button
+            type="submit"
+            class="btn-primary btn-lg"
+            :disabled="submitting || !form.title"
+            id="btn-create-story"
+          >
             <span v-if="submitting" class="spinner w-4 h-4" />
             <Feather v-else class="w-4 h-4" />
-            {{ submitting ? 'Membuat...' : 'Buat Cerita' }}
+            {{ submitting ? "Membuat..." : "Buat Cerita" }}
           </button>
         </div>
       </form>
@@ -121,47 +155,70 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { ArrowLeft, Feather } from 'lucide-vue-next'
-import { useStoryStore } from '../stores/storyStore'
+import { ref } from "vue";
+import { useRouter } from "vue-router";
+import { ArrowLeft, Feather } from "lucide-vue-next";
+import { useStoryStore } from "../stores/storyStore";
 
-const router = useRouter()
-const store = useStoryStore()
+const router = useRouter();
+const store = useStoryStore();
 
-const DEFAULT_SYSTEM_PROMPT = `Kamu adalah mesin cerita interaktif panjang (slow-burn text adventure).
-Tulis dalam bahasa Indonesia yang natural kecuali pengaturan cerita meminta lain.
-Lanjutkan adegan saat ini secara perlahan dan detail.
+const DEFAULT_SYSTEM_PROMPT = `You are an interactive long-form story engine — a collaborative prose writer, not a chatbot.
+Your job is to continue the ongoing scene in vivid, immersive prose that respects every rule of the context above.
 
-ATURAN PACING & BERCERITA (SANGAT PENTING):
-1. PACING SANGAT LAMBAT: Fokus pada atmosfer, emosi, detail lingkungan, dan pikiran karakter.
-2. JANGAN MEMAJUKAN PLOT TERLALU CEPAT: Jangan memasukkan rentetan kejadian penting (seperti mendapat email krusial lalu langsung bertemu seseorang) dalam satu respons. Pecah adegan menjadi momen-momen kecil.
-3. JANGAN MENGAMBIL ALIH KARAKTER PENGGUNA: Biarkan pengguna bereaksi terhadap satu kejadian kecil sebelum kejadian berikutnya terjadi.
-4. Jaga konsistensi karakter, hubungan, dan kesinambungan emosional.
-5. Jangan ajukan pertanyaan kepada pengguna di akhir respons. Jangan tulis judul bab.
-6. Ikuti story bible dan kondisi adegan saat ini di atas segalanya, namun ungkapkan elemen-elemen tersebut secara perlahan, bukan sekaligus.`
+## OUTPUT LANGUAGE
+Write in the story's configured language. If unspecified, match the user's last message.
+
+## RESPONSE LENGTH (IMPORTANT)
+Deliver a satisfying, well-paced beat each turn — neither a one-liner nor a wall of text.
+- Default target: 3-6 paragraphs, roughly 250-500 words.
+- Short reactive prompts may land at 2-3 paragraphs (~150-300 words).
+- Dramatic or action-heavy prompts may stretch to 6-8 paragraphs (~500-700 words).
+- Never exceed ~800 words. Never return fewer than 2 real paragraphs.
+- Favor quality over quantity: cut any sentence that doesn't add sensation, emotion, action, or subtext.
+
+## CRAFT RULES
+1. Show, don't tell — dramatize emotion through body language, micro-actions, silence, and dialogue beats rather than naming it ("she was nervous").
+2. Ground scenes in concrete sensory detail — sight, sound, touch, smell, proprioception — but avoid stacking more than two sensory details per paragraph.
+3. Vary sentence length and rhythm. Let short sentences punch. Let longer ones breathe.
+4. Use subtext in dialogue; characters rarely say exactly what they mean.
+5. Maintain consistent POV, tense, and voice. Match the tone established by prior messages.
+6. Avoid clichés, purple prose, and filler ("suddenly", "little did they know", "he couldn't help but...").
+
+## STORY DISCIPLINE
+1. Obey the RUNTIME GENERATION CONTROLS strictly. If scene lock is on: stay in-scene, don't skip time, don't change location, don't resolve the scene.
+2. Honor the STORY BIBLE, CURRENT SCENE STATE, CHARACTERS, and MEMORIES above everything else.
+3. Never speak or act on behalf of the user's character unless the user's last message clearly instructs you to. Let them drive their choices.
+4. Don't summarize future events, skip ahead, or say "and then later..." unless the user explicitly asks.
+5. Introduce new plot elements, characters, or revelations organically and one at a time.
+
+## FORMATTING
+- Write continuous prose. No chapter titles, headings, bullet lists, or section breaks.
+- Place dialogue on its own lines where natural; use straight double quotes.
+- No meta commentary ("Here is the next part..."). No out-of-character asides.
+- Do not end with a question to the user. End on a concrete sensory, emotional, or action beat that naturally invites their next move.`;
 
 const form = ref({
-  title: '',
-  genre: '',
-  language: 'id',
-  storyBible: '',
-  currentSceneState: '',
+  title: "",
+  genre: "",
+  language: "id",
+  storyBible: "",
+  currentSceneState: "",
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
-  stylePrompt: '',
-})
+  stylePrompt: "",
+});
 
-const submitting = ref(false)
-const error = ref<string | null>(null)
+const submitting = ref(false);
+const error = ref<string | null>(null);
 
 function resetSystemPrompt() {
-  form.value.systemPrompt = DEFAULT_SYSTEM_PROMPT
+  form.value.systemPrompt = DEFAULT_SYSTEM_PROMPT;
 }
 
 async function create() {
-  if (!form.value.title.trim()) return
-  submitting.value = true
-  error.value = null
+  if (!form.value.title.trim()) return;
+  submitting.value = true;
+  error.value = null;
   try {
     const story = await store.createStory({
       title: form.value.title.trim(),
@@ -171,12 +228,12 @@ async function create() {
       stylePrompt: form.value.stylePrompt || undefined,
       storyBible: form.value.storyBible || undefined,
       currentSceneState: form.value.currentSceneState || undefined,
-    } as any)
-    router.push(`/stories/${story.id}/write`)
+    } as any);
+    router.push(`/stories/${story.id}/write`);
   } catch (err: unknown) {
-    error.value = err instanceof Error ? err.message : 'Gagal membuat cerita'
+    error.value = err instanceof Error ? err.message : "Gagal membuat cerita";
   } finally {
-    submitting.value = false
+    submitting.value = false;
   }
 }
 </script>
