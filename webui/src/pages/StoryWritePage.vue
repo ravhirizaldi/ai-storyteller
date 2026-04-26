@@ -4,7 +4,7 @@
     <div class="flex flex-col flex-1 overflow-hidden min-w-0">
       <!-- Header -->
       <div
-        class="bg-white border-b border-ink-100 px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0 gap-2"
+        class="bg-white border-b border-ink-100 px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0 gap-2 dark:bg-ink-900 dark:border-ink-800"
       >
         <div class="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
           <RouterLink
@@ -15,7 +15,9 @@
             <ArrowLeft class="w-4 h-4" />
           </RouterLink>
           <div class="min-w-0 flex-1">
-            <h1 class="font-semibold text-ink-900 text-sm truncate">
+            <h1
+              class="font-semibold text-ink-900 text-sm truncate dark:text-ink-100"
+            >
               {{ currentStory?.title ?? "Memuat..." }}
             </h1>
             <div class="flex items-center gap-2">
@@ -44,6 +46,14 @@
           >
             <BookMarked class="w-3.5 h-3.5" /> Bible
           </RouterLink>
+          <button
+            class="btn-ghost btn-sm p-2"
+            :title="theme === 'dark' ? 'Mode terang' : 'Mode gelap'"
+            @click="toggleTheme"
+          >
+            <Sun v-if="theme === 'dark'" class="w-4 h-4" />
+            <Moon v-else class="w-4 h-4" />
+          </button>
           <RouterLink
             :to="`/stories/${storyId}/settings`"
             class="btn-ghost btn-sm p-2"
@@ -77,13 +87,17 @@
           class="flex flex-col items-center justify-center h-full gap-4 text-center py-12 max-w-md mx-auto"
         >
           <div
-            class="w-16 h-16 rounded-2xl bg-parchment-200 flex items-center justify-center"
+            class="w-16 h-16 rounded-2xl bg-parchment-200 flex items-center justify-center dark:bg-ink-800"
           >
             <Feather class="w-8 h-8 text-ink-400" />
           </div>
           <div>
-            <p class="font-semibold text-ink-800 text-lg">Mulai ceritamu</p>
-            <p class="text-sm text-ink-500 mt-1.5 leading-relaxed">
+            <p
+              class="font-semibold text-ink-800 text-lg dark:text-ink-100"
+            >
+              Mulai ceritamu
+            </p>
+            <p class="text-sm text-ink-500 mt-1.5 leading-relaxed dark:text-ink-400">
               Tulis arahan di bawah untuk menghasilkan adegan pembuka. Coba
               sesuatu seperti
               <em class="italic"
@@ -101,6 +115,9 @@
             v-for="msg in displayMessages"
             :key="msg.id"
             :message="msg"
+            :can-delete="!isGenerating && !msg.id.startsWith('optimistic-')"
+            @edit="onEditMessage"
+            @delete="onDeleteMessage"
           />
         </div>
 
@@ -110,13 +127,13 @@
           class="flex gap-3 mb-6 max-w-3xl mx-auto w-full"
         >
           <div
-            class="w-7 h-7 rounded-full bg-ink-800 flex items-center justify-center text-xs font-semibold text-parchment-50 mt-1 flex-shrink-0"
+            class="w-7 h-7 rounded-full bg-ink-800 flex items-center justify-center text-xs font-semibold text-parchment-50 mt-1 flex-shrink-0 dark:bg-ink-100 dark:text-ink-900"
           >
             AI
           </div>
           <div class="flex-1 min-w-0">
             <div
-              class="bg-white border border-ink-100 rounded-2xl rounded-tl-sm px-4 py-3"
+              class="bg-white border border-ink-100 rounded-2xl rounded-tl-sm px-4 py-3 dark:bg-ink-900/60 dark:border-ink-800"
             >
               <div
                 class="prose-story text-[15px] whitespace-pre-wrap streaming-cursor"
@@ -161,14 +178,14 @@
 
       <!-- Input area -->
       <div
-        class="bg-gradient-to-b from-transparent to-parchment-50/60 px-3 md:px-6 pt-2 pb-3 md:pb-4 flex-shrink-0"
+        class="bg-gradient-to-b from-transparent to-parchment-50/60 px-3 md:px-6 pt-2 pb-3 md:pb-4 flex-shrink-0 dark:to-ink-950/70"
       >
         <div class="max-w-3xl mx-auto">
           <!-- Composer card: toolbar + textarea + footer inside one rounded shell -->
           <div class="composer overflow-hidden">
             <!-- Top toolbar: mode / scene-lock / temp / regen -->
             <div
-              class="flex items-center justify-between gap-2 flex-wrap px-3 pt-2.5 pb-2 border-b border-ink-100/60"
+              class="flex items-center justify-between gap-2 flex-wrap px-3 pt-2.5 pb-2 border-b border-ink-100/60 dark:border-ink-800/70"
             >
               <div class="flex items-center gap-2 flex-wrap min-w-0">
                 <div class="relative" :title="modeDescription">
@@ -227,7 +244,7 @@
             <div class="flex gap-2 md:gap-3 items-end px-3 pt-2.5 pb-2.5">
               <textarea
                 v-model="userInput"
-                class="flex-1 min-h-[44px] max-h-[40vh] resize-none bg-transparent border-0 outline-none focus:ring-0 px-1 py-1 text-[15px] leading-[1.55] text-ink-900 placeholder:text-ink-400"
+                class="flex-1 min-h-[44px] max-h-[40vh] resize-none bg-transparent border-0 outline-none focus:ring-0 px-1 py-1 text-[15px] leading-[1.55] text-ink-900 placeholder:text-ink-400 dark:text-ink-100 dark:placeholder:text-ink-500"
                 :placeholder="inputPlaceholder"
                 :disabled="isGenerating"
                 @keydown="onKeydown"
@@ -259,18 +276,18 @@
 
             <!-- Footer: hint + counter -->
             <div
-              class="flex items-center justify-between gap-2 px-3 pb-2 text-[11px] text-ink-400"
+              class="flex items-center justify-between gap-2 px-3 pb-2 text-[11px] text-ink-400 dark:text-ink-500"
             >
               <p class="flex items-center gap-1.5 truncate">
                 <Zap class="w-3 h-3 flex-shrink-0" />
                 <span class="truncate">
                   <kbd
-                    class="px-1 py-0.5 rounded border border-ink-200 bg-parchment-50 text-[10px] text-ink-500"
+                    class="px-1 py-0.5 rounded border border-ink-200 bg-parchment-50 text-[10px] text-ink-500 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-400"
                     >Enter</kbd
                   >
                   kirim ·
                   <kbd
-                    class="px-1 py-0.5 rounded border border-ink-200 bg-parchment-50 text-[10px] text-ink-500"
+                    class="px-1 py-0.5 rounded border border-ink-200 bg-parchment-50 text-[10px] text-ink-500 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-400"
                     >Shift+Enter</kbd
                   >
                   baris baru
@@ -295,7 +312,7 @@
 
     <!-- Right sidebar (fixed on desktop, animated drawer on smaller screens) -->
     <aside
-      class="border-l border-ink-100 bg-white flex-shrink-0 overflow-hidden flex-col z-20 w-72 xl:static xl:flex xl:translate-x-0 xl:shadow-none fixed right-0 top-0 bottom-0 sidebar-drawer flex"
+      class="border-l border-ink-100 bg-white flex-shrink-0 overflow-hidden flex-col z-20 w-72 xl:static xl:flex xl:translate-x-0 xl:shadow-none fixed right-0 top-0 bottom-0 sidebar-drawer flex dark:bg-ink-900 dark:border-ink-800"
       :class="[
         sidebarOpen
           ? 'translate-x-0 shadow-2xl xl:shadow-none'
@@ -352,7 +369,10 @@ import {
   Lock,
   LockOpen,
   Thermometer,
+  Sun,
+  Moon,
 } from "lucide-vue-next";
+import { useTheme } from "../composables/useTheme";
 import { useStoryStore } from "../stores/storyStore";
 import MessageBubble from "../components/story/MessageBubble.vue";
 import StorySidebar from "../components/story/StorySidebar.vue";
@@ -364,6 +384,7 @@ import { renderInlineMarkdown } from "../lib/inlineMarkdown";
 
 const route = useRoute();
 const store = useStoryStore();
+const { theme, toggle: toggleTheme } = useTheme();
 
 const storyId = computed(() => route.params.storyId as string);
 const currentStory = computed(() => store.currentStory);
@@ -536,6 +557,7 @@ onMounted(async () => {
 
   displayMessages.value = [...store.sortedMessages];
   loadingMessages.value = false;
+  loadDraft();
   await scrollToBottom(true);
   nextTick(autoResize);
 
@@ -588,6 +610,55 @@ function onKeydown(e: KeyboardEvent) {
   if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
     generate();
+    return;
+  }
+  // ArrowUp on an empty composer: recall the last user message (terminal-style
+  // history). Doesn't overwrite content you've already typed.
+  if (e.key === "ArrowUp" && !userInput.value) {
+    const lastUser = [...displayMessages.value]
+      .reverse()
+      .find((m) => m.role === "user");
+    if (lastUser && lastUser.content) {
+      e.preventDefault();
+      userInput.value = lastUser.content;
+      nextTick(() => {
+        autoResize();
+        inputEl.value?.setSelectionRange(
+          lastUser.content.length,
+          lastUser.content.length,
+        );
+      });
+    }
+  }
+}
+
+async function onEditMessage(messageId: string, newContent: string) {
+  try {
+    await messagesApi.update(storyId.value, messageId, newContent);
+    // Optimistic local update so the edit is visible instantly, then refresh
+    // from the server to pick up any server-side transformations.
+    const local = displayMessages.value.find((m) => m.id === messageId);
+    if (local) local.content = newContent;
+    await store.fetchMessages(storyId.value);
+    if (!isGenerating.value) {
+      displayMessages.value = [...store.sortedMessages];
+    }
+  } catch (err) {
+    genError.value =
+      err instanceof Error ? err.message : "Gagal menyimpan perubahan.";
+  }
+}
+
+async function onDeleteMessage(messageId: string) {
+  try {
+    await messagesApi.deleteTurn(storyId.value, messageId);
+    await store.fetchMessages(storyId.value);
+    if (!isGenerating.value) {
+      displayMessages.value = [...store.sortedMessages];
+    }
+  } catch (err) {
+    genError.value =
+      err instanceof Error ? err.message : "Gagal menghapus pesan.";
   }
 }
 
@@ -686,9 +757,51 @@ async function generate() {
   const message = userInput.value.trim();
   if (!message || isGenerating.value) return;
   userInput.value = "";
+  clearDraft();
   nextTick(autoResize);
   await runGeneration(message);
 }
+
+// ─── Draft auto-save ─────────────────────────────────────
+// Persist whatever the user is typing to localStorage so a reload, tab
+// close, or accidental nav doesn't eat their prompt. Keyed per-story so
+// different stories don't clobber each other's drafts.
+function draftKey() {
+  return `storyDraft:${storyId.value}`;
+}
+function loadDraft() {
+  try {
+    const saved = localStorage.getItem(draftKey());
+    if (saved && !userInput.value) {
+      userInput.value = saved;
+      nextTick(autoResize);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+function clearDraft() {
+  try {
+    localStorage.removeItem(draftKey());
+  } catch {
+    /* ignore */
+  }
+}
+let draftSaveTimer: ReturnType<typeof setTimeout> | null = null;
+watch(userInput, (val) => {
+  if (draftSaveTimer) clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(() => {
+    try {
+      if (val.trim()) {
+        localStorage.setItem(draftKey(), val);
+      } else {
+        localStorage.removeItem(draftKey());
+      }
+    } catch {
+      /* ignore */
+    }
+  }, 400);
+});
 
 async function retryLast() {
   if (!lastUserMessage.value || isGenerating.value) return;

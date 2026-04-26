@@ -155,6 +155,19 @@ export const messagesApi = {
       `/api/stories/${storyId}/messages/last-exchange`,
       { method: "DELETE" },
     ),
+  update: (storyId: string, messageId: string, content: string) =>
+    request<StoryMessage>(
+      `/api/stories/${storyId}/messages/${messageId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ content }),
+      },
+    ),
+  deleteTurn: (storyId: string, messageId: string) =>
+    request<{ deleted: number }>(
+      `/api/stories/${storyId}/messages/${messageId}`,
+      { method: "DELETE" },
+    ),
 };
 
 // ─── Characters ─────────────────────────────────────────

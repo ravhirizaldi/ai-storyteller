@@ -1,16 +1,26 @@
 <template>
   <div class="flex-1 overflow-y-auto">
     <!-- Header -->
-    <div class="sticky top-0 bg-parchment-50/95 backdrop-blur-sm border-b border-ink-100 px-8 py-5 z-10">
+    <div class="sticky top-0 bg-parchment-50/95 backdrop-blur-sm border-b border-ink-100 px-8 py-5 z-10 dark:bg-ink-950/95 dark:border-ink-800">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-ink-900">Cerita Saya</h1>
-          <p class="text-sm text-ink-500 mt-0.5">{{ stories.length }} cerita</p>
+          <h1 class="text-2xl font-bold text-ink-900 dark:text-ink-100">Cerita Saya</h1>
+          <p class="text-sm text-ink-500 mt-0.5 dark:text-ink-400">{{ stories.length }} cerita</p>
         </div>
-        <RouterLink to="/stories/new" class="btn-primary" id="btn-new-story">
-          <Plus class="w-4 h-4" />
-          Cerita Baru
-        </RouterLink>
+        <div class="flex items-center gap-2">
+          <button
+            class="btn-ghost btn-sm p-2"
+            :title="theme === 'dark' ? 'Mode terang' : 'Mode gelap'"
+            @click="toggleTheme"
+          >
+            <Sun v-if="theme === 'dark'" class="w-4 h-4" />
+            <Moon v-else class="w-4 h-4" />
+          </button>
+          <RouterLink to="/stories/new" class="btn-primary" id="btn-new-story">
+            <Plus class="w-4 h-4" />
+            Cerita Baru
+          </RouterLink>
+        </div>
       </div>
     </div>
 
@@ -28,12 +38,12 @@
 
       <!-- Empty state -->
       <div v-else-if="stories.length === 0" class="flex flex-col items-center justify-center py-20 gap-4">
-        <div class="w-16 h-16 rounded-2xl bg-parchment-200 flex items-center justify-center">
+        <div class="w-16 h-16 rounded-2xl bg-parchment-200 flex items-center justify-center dark:bg-ink-800">
           <BookOpen class="w-8 h-8 text-ink-400" />
         </div>
         <div class="text-center">
-          <p class="font-semibold text-ink-700">Belum ada cerita</p>
-          <p class="text-sm text-ink-400 mt-1">Mulai dengan membuat cerita pertama kamu</p>
+          <p class="font-semibold text-ink-700 dark:text-ink-100">Belum ada cerita</p>
+          <p class="text-sm text-ink-400 mt-1 dark:text-ink-500">Mulai dengan membuat cerita pertama kamu</p>
         </div>
         <RouterLink to="/stories/new" class="btn-primary">
           <Plus class="w-4 h-4" /> Buat Cerita
@@ -57,9 +67,12 @@
 <script setup lang="ts">
 import { onMounted, computed } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
-import { Plus, BookOpen } from 'lucide-vue-next'
+import { Plus, BookOpen, Sun, Moon } from 'lucide-vue-next'
 import { useStoryStore } from '../stores/storyStore'
 import StoryCard from '../components/story/StoryCard.vue'
+import { useTheme } from '../composables/useTheme'
+
+const { theme, toggle: toggleTheme } = useTheme()
 
 const router = useRouter()
 const store = useStoryStore()
