@@ -1,6 +1,7 @@
 import { getStoryById } from "../stories/storiesService";
 import { getCharactersByStory } from "../characters/charactersService";
 import { getRecentMessages, createMessage } from "../messages/messagesService";
+import { KEEP_LAST_N_TURNS } from "./compactService";
 import {
   searchMemoriesByText,
   getPinnedMemories,
@@ -225,7 +226,7 @@ export async function generateStoryStream(
   const [characters, activePlotThreads, recentMessages] = await Promise.all([
     getCharactersByStory(input.storyId),
     getActivePlotThreads(input.storyId),
-    getRecentMessages(input.storyId, 10, true),
+    getRecentMessages(input.storyId, KEEP_LAST_N_TURNS, true),
   ]);
 
   // 2. Pull relevant memories: pinned-always + FTS-matched by user message.
@@ -339,7 +340,7 @@ export async function generateStoryText(input: GenerateStoryInput): Promise<{
   const [characters, activePlotThreads, recentMessages] = await Promise.all([
     getCharactersByStory(input.storyId),
     getActivePlotThreads(input.storyId),
-    getRecentMessages(input.storyId, 10, true),
+    getRecentMessages(input.storyId, KEEP_LAST_N_TURNS, true),
   ]);
 
   // Union pinned + FTS-matched memories, dedup by id. Matches the

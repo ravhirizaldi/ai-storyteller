@@ -23,8 +23,10 @@ export const CONTEXT_TOKEN_BUDGET = 90_000;
 /** How many of the most recent messages to keep as live context (i.e.
  *  never fold into the summary). Keeping a healthy tail preserves the
  *  conversational voice and recent beats the user is most likely to
- *  reference. */
-const KEEP_LAST_N_TURNS = 12;
+ *  reference. Also serves as the `getRecentMessages` fetch limit on
+ *  the generation path so we never leave a gap between "not in the
+ *  summary yet" and "not in the live window either." */
+export const KEEP_LAST_N_TURNS = 12;
 
 export function estimateTokens(text: string): number {
   if (!text) return 0;
