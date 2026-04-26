@@ -302,6 +302,7 @@ import MessageBubble from "../components/story/MessageBubble.vue";
 import StorySidebar from "../components/story/StorySidebar.vue";
 import { streamStoryGeneration } from "../lib/stream";
 import { languageLabel } from "../lib/utils";
+import { messagesApi } from "../lib/api";
 import type { StoryMessage } from "../lib/api";
 
 const route = useRoute();
@@ -559,8 +560,22 @@ async function regenerateLast() {
   while (i >= 0 && msgs[i]!.role !== "user") i--;
   if (i < 0) return;
   const userMsg = msgs[i]!;
-  // Drop the trailing assistant reply from the display so the regenerated one
-  // takes its place visually.
+
+  // Delete the stored user+assistant pair on the server BEFORE regenerating —
+  // otherwise the next server-side generate call would duplicate both rows
+  // and the post-generation refresh would surface duplicates.
+  try {
+    await messagesApi.deleteLastExchange(storyId.value);
+  } catch (err) {
+    genError.value =
+      err instanceof Error
+        ? `Gagal menghapus respons lama: ${err.message}`
+        : "Gagal menghapus respons lama.";
+    return;
+  }
+
+  // Drop the trailing user+assistant pair from the display so the regenerated
+  // bubble takes their place visually.
   displayMessages.value = msgs.slice(0, i);
   await runGeneration(userMsg.content);
 }
