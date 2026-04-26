@@ -116,7 +116,7 @@
             :key="msg.id"
             :message="msg"
             :can-delete="!isGenerating && !msg.id.startsWith('temp-')"
-            @edit="onEditMessage"
+            :on-edit-async="onEditMessage"
             @delete="onDeleteMessage"
           />
         </div>
@@ -646,6 +646,9 @@ async function onEditMessage(messageId: string, newContent: string) {
   } catch (err) {
     genError.value =
       err instanceof Error ? err.message : "Gagal menyimpan perubahan.";
+    // Re-throw so the MessageBubble keeps its edit form open and the
+    // user doesn't silently lose their draft on a failed PATCH.
+    throw err;
   }
 }
 

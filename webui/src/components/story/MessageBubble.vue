@@ -137,6 +137,10 @@ const props = defineProps<{
   message: StoryMessage;
   isStreaming?: boolean;
   canDelete?: boolean;
+  /** Optional async handler. When provided, `commitEdit` awaits it so
+   *  the saving indicator actually reflects request latency and the
+   *  form stays open on failure. If omitted, falls back to the emit. */
+  onEditAsync?: (messageId: string, newContent: string) => Promise<void>;
 }>();
 
 const emit = defineEmits<{
@@ -185,10 +189,19 @@ async function commitEdit() {
   if (!next || next === props.message.content || saving.value) return;
   saving.value = true;
   try {
-    emit("edit", props.message.id, next);
+    // Prefer the async callback if the parent wired one up — this lets
+    // us actually keep the saving spinner on screen until the PATCH
+    // lands, and stay in edit mode if it throws.
+    if (props.onEditAsync) {
+      await props.onEditAsync(props.message.id, next);
+    } else {
+      emit("edit", props.message.id, next);
+    }
+    editing.value = false;
+  } catch {
+    // Leave the form open so the user can retry without losing their draft.
   } finally {
     saving.value = false;
-    editing.value = false;
   }
 }
 

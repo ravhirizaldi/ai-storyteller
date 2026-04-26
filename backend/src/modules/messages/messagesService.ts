@@ -104,13 +104,17 @@ export async function deleteTurnStartingAt(
   }
 
   // Find the next message (by created_at) and, if it's an assistant reply,
-  // drop it together with the anchor.
+  // drop it together with the anchor. Use a subquery to compare timestamps
+  // entirely in Postgres — round-tripping anchor.created_at through the pg
+  // driver would truncate sub-millisecond precision and cause the anchor
+  // row to match itself, leaving its paired assistant reply behind.
   const next = await queryOne<StoryMessage>(
     `SELECT * FROM story_messages
-       WHERE story_id = $1 AND created_at > $2
+       WHERE story_id = $1
+         AND created_at > (SELECT created_at FROM story_messages WHERE id = $2)
        ORDER BY created_at ASC
        LIMIT 1`,
-    [storyId, anchor.created_at],
+    [storyId, anchor.id],
   );
 
   const ids = [anchor.id];
