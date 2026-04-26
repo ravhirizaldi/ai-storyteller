@@ -31,9 +31,9 @@ function buildStoryPrompt(context: {
 
   const sections: string[] = [];
 
-  // 1. Base system / writing rules
+  // 1. Base system / writing rules (largely static → cache-friendly prefix)
   sections.push(`## SYSTEM WRITING RULES
-${story.system_prompt ?? "Kamu adalah mesin cerita interaktif. Tulis prosa yang immersif dan alami."}`);
+${story.system_prompt ?? "You are an interactive long-form story engine. Write immersive, natural prose that respects the context below."}`);
 
   // 2. Writing Style
   if (story.style_prompt) {
@@ -41,25 +41,19 @@ ${story.system_prompt ?? "Kamu adalah mesin cerita interaktif. Tulis prosa yang 
 ${story.style_prompt}`);
   }
 
-  // 3. Story Bible
+  // 3. Story Bible — framed as background context, NOT a script to execute.
   if (story.story_bible) {
-    sections.push(`## STORY BIBLE
+    sections.push(`## STORY BIBLE (BACKGROUND CONTEXT — NOT A SCRIPT)
+The following is worldbuilding + backstory the story takes place inside of.
+It constrains tone, lore, and existing relationships — it does NOT compel
+you to advance its "big motivation", grand reveal, or secret plot on your
+own initiative. Only surface bible elements when the user's direction
+actually points there.
+
 ${story.story_bible}`);
   }
 
-  // 3. Current Scene State
-  if (story.current_scene_state) {
-    sections.push(`## CURRENT SCENE STATE
-${story.current_scene_state}`);
-  }
-
-  // 4. Timeline State
-  if (story.current_timeline_state) {
-    sections.push(`## TIMELINE STATE
-${story.current_timeline_state}`);
-  }
-
-  // 5. Main Characters
+  // 4. Main Characters
   if (characters.length > 0) {
     const charText = characters
       .map(
@@ -73,7 +67,19 @@ ${[c.description, c.personality, c.relationship_notes, c.current_state]
     sections.push(`## MAIN CHARACTERS\n${charText}`);
   }
 
-  // 6. Active Plot Threads
+  // 5. Current Scene State (dynamic — placed after static context)
+  if (story.current_scene_state) {
+    sections.push(`## CURRENT SCENE STATE
+${story.current_scene_state}`);
+  }
+
+  // 6. Timeline State
+  if (story.current_timeline_state) {
+    sections.push(`## TIMELINE STATE
+${story.current_timeline_state}`);
+  }
+
+  // 7. Active Plot Threads
   if (activePlotThreads.length > 0) {
     const threadText = activePlotThreads
       .map((pt) => `- **${pt.title}**: ${pt.content ?? "(active)"}`)
@@ -81,34 +87,59 @@ ${[c.description, c.personality, c.relationship_notes, c.current_state]
     sections.push(`## ACTIVE PLOT THREADS\n${threadText}`);
   }
 
-  // 7. Relevant Long-Term Memories
+  // 8. Relevant Long-Term Memories
   if (relevantMemories.length > 0) {
     sections.push(
       `## RELEVANT LONG-TERM MEMORIES\n${relevantMemories.map((m) => `- ${m}`).join("\n")}`,
     );
   }
 
-  // 8. Runtime Generation Controls
+  // 9. Runtime Generation Controls (mode-aware length + pacing)
+  const lengthGuide: Record<string, string> = {
+    slow_scene:
+      "Target 3-5 paragraphs (~250-450 words). Favor atmosphere, dialogue beats, and internal life over plot motion.",
+    balanced:
+      "Target 3-6 paragraphs (~300-550 words). Progress the beat modestly; end on a concrete sensation or action.",
+    progress_story:
+      "Target 4-7 paragraphs (~400-650 words). Let the story move forward clearly, but still one beat at a time.",
+    cinematic:
+      "Target 4-7 paragraphs (~450-700 words). Lean into vivid staging and dramatic framing without purple prose.",
+  };
+
   const runtimeControls: string[] = [];
   runtimeControls.push(`- Mode: ${settings.mode}`);
-  if (settings.mode === "slow_scene") {
+  runtimeControls.push(
+    `- Length guide: ${lengthGuide[settings.mode] ?? lengthGuide.balanced}`,
+  );
+  runtimeControls.push(
+    `- Hard cap: never exceed ~800 words; never write fewer than 2 real paragraphs.`,
+  );
+  runtimeControls.push(
+    `- Obey the user's last message literally. Dramatize ONLY what they direct. Do not invent extra actions, phone calls, mental simulations, flashbacks, or plot moves they didn't ask for.`,
+  );
+  runtimeControls.push(
+    `- Do NOT progress the Story Bible's "big motivation", grand reveal, or secret project on your own initiative. Bible context is background; only surface it when the user's direction points there.`,
+  );
+  runtimeControls.push(
+    `- If the user's prompt is mundane/static (idling, bengong, scrolling phone, smoking, coffee), the beat stays mundane. Tiny sensory detail > plot motion.`,
+  );
+  runtimeControls.push(
+    `- Never put new dialogue, decisions, or committed actions in the user's character's mouth beyond what they wrote.`,
+  );
+
+  if (settings.sceneLock || settings.mode === "slow_scene") {
     runtimeControls.push(`- Stay inside the current scene.`);
-    runtimeControls.push(`- Do not skip time.`);
-    runtimeControls.push(`- Do not change location.`);
-    runtimeControls.push(`- Do not resolve the scene.`);
-    runtimeControls.push(`- Do not introduce major new events.`);
-    runtimeControls.push(`- Do not introduce major new characters.`);
-    runtimeControls.push(
-      `- Do not escalate stakes unless the user explicitly asks.`,
-    );
+    runtimeControls.push(`- Continue only the immediate next beat.`);
+    runtimeControls.push(`- Do not resolve or end the scene.`);
+    runtimeControls.push(`- Do not summarize future events.`);
+  }
+  if (settings.mode === "slow_scene") {
     runtimeControls.push(
       `- Focus on dialogue, small physical actions, atmosphere, emotional nuance, and realistic pacing.`,
     );
     runtimeControls.push(
-      `- Continue only the immediate next beat of the scene.`,
+      `- Do not escalate stakes unless the user explicitly asks.`,
     );
-    runtimeControls.push(`- Do not summarize what happens later.`);
-    runtimeControls.push(`- Do not write an ending for the scene.`);
   }
 
   if (!settings.allowTimeSkip) {
@@ -118,19 +149,25 @@ ${[c.description, c.personality, c.relationship_notes, c.current_state]
     runtimeControls.push(`- Location change is forbidden.`);
   }
   if (!settings.allowMajorPlotProgress) {
-    runtimeControls.push(`- Major plot progression is forbidden.`);
-  }
-
-  if (runtimeControls.length > 0) {
-    sections.push(
-      `## RUNTIME GENERATION CONTROLS\n${runtimeControls.join("\n")}`,
+    runtimeControls.push(
+      `- Major plot progression is forbidden (no new major characters, no stake escalation, no resolving major events).`,
     );
   }
 
-  // 9. Writing behavior reminder
+  sections.push(
+    `## RUNTIME GENERATION CONTROLS\n${runtimeControls.join("\n")}`,
+  );
+
+  // 10. Writing behavior reminder
+  const langLabel =
+    story.language === "id"
+      ? "Bahasa Indonesia yang natural"
+      : story.language === "en"
+        ? "natural English"
+        : story.language;
   sections.push(`## TASK
-Lanjutkan cerita berdasarkan arahan pengguna di bawah ini. Tulis dalam bahasa ${story.language === "id" ? "Indonesia" : story.language}.
-Jangan buat judul bab. Jangan tanya pengguna di akhir. Tulis prosa yang mengalir alami.`);
+Continue the story from the user's direction below. Write in ${langLabel}.
+No chapter titles. No questions to the user at the end. Flowing, natural prose only.`);
 
   return sections.join("\n\n---\n\n");
 }
@@ -181,16 +218,15 @@ export async function generateStoryStream(
   );
 
   const settings = {
-    mode:
-      input.generationOverride?.mode ?? story.generation_mode ?? "slow_scene",
+    mode: input.generationOverride?.mode ?? story.generation_mode ?? "balanced",
     temperature:
       input.generationOverride?.temperature ??
       Number(story.temperature) ??
-      0.45,
+      0.55,
     maxOutputTokens:
       input.generationOverride?.maxOutputTokens ??
       story.max_output_tokens ??
-      1200,
+      1400,
     sceneLock: input.generationOverride?.sceneLock ?? story.scene_lock ?? true,
     allowTimeSkip:
       input.generationOverride?.allowTimeSkip ?? story.allow_time_skip ?? false,
@@ -289,16 +325,15 @@ export async function generateStoryText(input: GenerateStoryInput): Promise<{
   );
 
   const settings = {
-    mode:
-      input.generationOverride?.mode ?? story.generation_mode ?? "slow_scene",
+    mode: input.generationOverride?.mode ?? story.generation_mode ?? "balanced",
     temperature:
       input.generationOverride?.temperature ??
       Number(story.temperature) ??
-      0.45,
+      0.55,
     maxOutputTokens:
       input.generationOverride?.maxOutputTokens ??
       story.max_output_tokens ??
-      1200,
+      1400,
     sceneLock: input.generationOverride?.sceneLock ?? story.scene_lock ?? true,
     allowTimeSkip:
       input.generationOverride?.allowTimeSkip ?? story.allow_time_skip ?? false,

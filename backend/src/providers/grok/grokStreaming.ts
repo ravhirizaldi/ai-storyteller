@@ -17,6 +17,9 @@ export interface StreamInput {
  * Sends events in the format:
  *   data: {"chunk": "..."}\n\n
  *   data: [DONE]\n\n
+ *
+ * On client disconnect we abort the upstream OpenAI stream so we don't keep
+ * burning tokens after the user has given up.
  */
 export async function streamText(
   input: StreamInput,
@@ -31,7 +34,7 @@ export async function streamText(
   // Set SSE headers & CORS explicitly since we bypass Fastify's onSend hook
   reply.raw.setHeader("Access-Control-Allow-Origin", "*");
   reply.raw.setHeader("Content-Type", "text/event-stream");
-  reply.raw.setHeader("Cache-Control", "no-cache");
+  reply.raw.setHeader("Cache-Control", "no-cache, no-transform");
   reply.raw.setHeader("Connection", "keep-alive");
   reply.raw.setHeader("X-Accel-Buffering", "no");
   reply.raw.flushHeaders(); // Start sending immediately
@@ -44,27 +47,61 @@ export async function streamText(
     })),
   ];
 
-  const stream = await client.chat.completions.create({
-    model: GROK_FAST,
-    messages,
-    stream: true,
-    max_tokens: input.maxTokens ?? 4096,
-    temperature: input.temperature ?? 0.4,
+  const controller = new AbortController();
+  let clientClosed = false;
+
+  reply.raw.on("close", () => {
+    if (!reply.raw.writableEnded) {
+      clientClosed = true;
+      controller.abort();
+    }
   });
 
   let fullText = "";
 
-  for await (const chunk of stream) {
-    const delta = chunk.choices[0]?.delta?.content;
-    if (delta) {
-      fullText += delta;
-      reply.raw.write(`data: ${JSON.stringify({ chunk: delta })}\n\n`);
+  try {
+    const stream = await client.chat.completions.create(
+      {
+        model: GROK_FAST,
+        messages,
+        stream: true,
+        stream_options: { include_usage: true },
+        max_tokens: input.maxTokens ?? 1400,
+        temperature: input.temperature ?? 0.55,
+      },
+      { signal: controller.signal },
+    );
+
+    for await (const chunk of stream) {
+      if (clientClosed) break;
+      const delta = chunk.choices[0]?.delta?.content;
+      if (delta) {
+        fullText += delta;
+        reply.raw.write(`data: ${JSON.stringify({ chunk: delta })}\n\n`);
+      }
+    }
+
+    if (!clientClosed) {
+      reply.raw.write("data: [DONE]\n\n");
+      reply.raw.end();
+    }
+  } catch (err) {
+    // If the client aborted, that's expected — just return whatever we got.
+    if (clientClosed) {
+      logger.debug("AI streaming aborted by client");
+    } else {
+      logger.error({ err }, "AI streaming error");
+      try {
+        reply.raw.write(
+          `data: ${JSON.stringify({ error: "stream_failed" })}\n\n`,
+        );
+        reply.raw.end();
+      } catch {
+        /* socket already closed */
+      }
     }
   }
 
-  reply.raw.write("data: [DONE]\n\n");
-  reply.raw.end();
-
-  logger.debug("AI streaming end");
+  logger.debug({ chars: fullText.length }, "AI streaming end");
   return fullText;
 }
