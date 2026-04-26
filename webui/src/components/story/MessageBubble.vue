@@ -52,7 +52,7 @@
             </button>
             <button
               class="text-xs px-2.5 py-1 rounded-md bg-ink-800 text-parchment-50 hover:bg-ink-900 disabled:opacity-40 dark:bg-ink-100 dark:text-ink-900 dark:hover:bg-white"
-              :disabled="!draft.trim() || draft === message.content || saving"
+              :disabled="!draft.trim() || draft.trim() === message.content || saving"
               @click="commitEdit"
             >
               {{ saving ? "…" : "Simpan" }}
