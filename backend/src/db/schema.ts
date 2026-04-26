@@ -52,6 +52,9 @@ export interface StoryMemory {
   embedding: number[] | null;
   importance: number;
   source_message_id: string | null;
+  /** If true, the memory is always surfaced into the prompt regardless
+   *  of importance/recency. Controlled from the sidebar's pin toggle. */
+  is_pinned: boolean;
   created_at: Date;
 }
 

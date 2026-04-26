@@ -98,18 +98,85 @@
         <div v-if="memories.length === 0" class="text-center py-8 text-ink-400 text-xs">
           Belum ada memori
         </div>
-        <div v-for="mem in memories" :key="mem.id" class="card p-3 mb-2">
-          <div class="flex items-start justify-between gap-2">
+        <div
+          v-for="mem in memories"
+          :key="mem.id"
+          class="card p-3 mb-2"
+          :class="mem.is_pinned ? 'ring-1 ring-amber-300 dark:ring-amber-500/60' : ''"
+        >
+          <!-- View mode -->
+          <div v-if="editingMemId !== mem.id" class="flex items-start justify-between gap-2">
             <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-1.5 mb-1">
+              <div class="flex items-center gap-1.5 mb-1 flex-wrap">
+                <Pin
+                  v-if="mem.is_pinned"
+                  class="w-3 h-3 text-amber-500 dark:text-amber-400 flex-shrink-0"
+                />
                 <span class="badge bg-parchment-200 text-ink-600 dark:bg-ink-800 dark:text-ink-300">{{ mem.type }}</span>
                 <span class="text-xs text-ink-400 dark:text-ink-500">★{{ mem.importance }}</span>
               </div>
-              <p class="text-xs text-ink-700 leading-relaxed dark:text-ink-200">{{ mem.content }}</p>
+              <p class="text-xs text-ink-700 leading-relaxed dark:text-ink-200 whitespace-pre-wrap">{{ mem.content }}</p>
             </div>
-            <button class="btn-ghost btn-sm p-1 text-red-400" @click="removeMemory(mem.id)">
-              <Trash2 class="w-3 h-3" />
-            </button>
+            <div class="flex flex-col gap-1 flex-shrink-0">
+              <button
+                class="btn-ghost btn-sm p-1"
+                :class="mem.is_pinned ? 'text-amber-500' : 'text-ink-400 hover:text-amber-500'"
+                :title="mem.is_pinned ? 'Lepas pin' : 'Pin supaya selalu diingat AI'"
+                @click="togglePin(mem)"
+              >
+                <Pin class="w-3 h-3" />
+              </button>
+              <button
+                class="btn-ghost btn-sm p-1 text-ink-400 hover:text-ink-700 dark:hover:text-ink-200"
+                title="Edit"
+                @click="startEditMemory(mem)"
+              >
+                <Pencil class="w-3 h-3" />
+              </button>
+              <button
+                class="btn-ghost btn-sm p-1 text-red-400"
+                title="Hapus"
+                @click="removeMemory(mem.id)"
+              >
+                <Trash2 class="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Edit mode -->
+          <div v-else class="space-y-2">
+            <input
+              v-model="editBuf.type"
+              class="input text-xs"
+              placeholder="Tipe"
+            />
+            <textarea
+              v-model="editBuf.content"
+              class="textarea text-xs min-h-[80px]"
+              placeholder="Isi memori..."
+            />
+            <div class="flex items-center gap-2">
+              <label class="text-[11px] text-ink-500 dark:text-ink-400">Importance</label>
+              <select v-model.number="editBuf.importance" class="select text-xs flex-1">
+                <option :value="1">1</option>
+                <option :value="2">2</option>
+                <option :value="3">3</option>
+                <option :value="4">4</option>
+                <option :value="5">5</option>
+              </select>
+            </div>
+            <div class="flex gap-2">
+              <button
+                class="btn-primary btn-sm flex-1"
+                :disabled="!editBuf.content.trim() || savingMem"
+                @click="saveMemoryEdit(mem.id)"
+              >
+                Simpan
+              </button>
+              <button class="btn-secondary btn-sm" @click="cancelMemoryEdit">
+                Batal
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -201,9 +268,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Plus, Trash2, Check } from 'lucide-vue-next'
+import { Plus, Trash2, Check, Pin, Pencil } from 'lucide-vue-next'
 import { useStoryStore } from '../../stores/storyStore'
-import type { Story } from '../../lib/api'
+import type { Story, StoryMemory } from '../../lib/api'
 
 const props = defineProps<{ storyId: string; story: Story | null }>()
 const store = useStoryStore()
@@ -244,6 +311,39 @@ async function saveMemory() {
 }
 async function removeMemory(id: string) {
   if (confirm('Hapus memori ini?')) await store.deleteMemory(id)
+}
+
+// In-place memory edit. Only one row is edited at a time; editBuf holds
+// the draft so we don't mutate the store until the user clicks Simpan.
+const editingMemId = ref<string | null>(null)
+const editBuf = ref({ type: '', content: '', importance: 1 })
+const savingMem = ref(false)
+function startEditMemory(mem: StoryMemory) {
+  editingMemId.value = mem.id
+  editBuf.value = {
+    type: mem.type,
+    content: mem.content,
+    importance: mem.importance,
+  }
+}
+function cancelMemoryEdit() {
+  editingMemId.value = null
+}
+async function saveMemoryEdit(id: string) {
+  savingMem.value = true
+  try {
+    await store.updateMemory(id, {
+      type: editBuf.value.type,
+      content: editBuf.value.content,
+      importance: editBuf.value.importance,
+    })
+    editingMemId.value = null
+  } finally {
+    savingMem.value = false
+  }
+}
+async function togglePin(mem: StoryMemory) {
+  await store.updateMemory(mem.id, { isPinned: !mem.is_pinned })
 }
 
 // Plot thread form
