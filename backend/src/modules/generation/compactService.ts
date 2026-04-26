@@ -150,18 +150,27 @@ export async function compactStory(
     temperature: 0.3,
   });
 
+  const trimmed = summary.trim();
+  if (!trimmed) {
+    // Empty LLM response would persist as story_summary = "" while still
+    // advancing the cutoff — buildStoryPrompt treats "" as falsy and
+    // skips the summary block, so older messages would be silently
+    // dropped from the prompt with nothing replacing them. Abort instead.
+    logger.warn(
+      { storyId, count: toSummarize.length },
+      "compactStory: LLM returned empty summary, aborting",
+    );
+    return null;
+  }
+
   // Pass the message id (not its JS Date) so the cutoff timestamp is
   // copied at full PostgreSQL precision — see applyStorySummary.
   const cutoffMessageId = toSummarize[toSummarize.length - 1]!.id;
-  const story = await applyStorySummary(
-    storyId,
-    summary.trim(),
-    cutoffMessageId,
-  );
+  const story = await applyStorySummary(storyId, trimmed, cutoffMessageId);
 
   return {
     story,
-    summary: summary.trim(),
+    summary: trimmed,
     summarizedMessageCount: toSummarize.length,
   };
 }
