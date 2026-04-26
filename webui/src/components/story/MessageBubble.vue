@@ -40,14 +40,16 @@
         >
           {{ message.content }}
         </p>
-        <!-- Assistant: prose style -->
+        <!-- Assistant: prose style with inline-only markdown rendering.
+             We escape-then-render via renderInlineMarkdown so the only HTML
+             reaching the DOM is <em> / <strong>; everything else is
+             text-safe. -->
         <div
           v-else
           class="prose-story text-[15px] whitespace-pre-wrap break-words"
           :class="{ 'streaming-cursor': isStreaming }"
-        >
-          {{ message.content }}
-        </div>
+          v-html="renderedContent"
+        />
       </div>
       <p
         class="text-xs text-ink-300 mt-1 px-1"
@@ -60,13 +62,19 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import type { StoryMessage } from "../../lib/api";
 import { formatDateTime } from "../../lib/utils";
+import { renderInlineMarkdown } from "../../lib/inlineMarkdown";
 
-defineProps<{
+const props = defineProps<{
   message: StoryMessage;
   isStreaming?: boolean;
 }>();
+
+const renderedContent = computed(() =>
+  renderInlineMarkdown(props.message.content ?? ""),
+);
 </script>
 
 <style scoped>

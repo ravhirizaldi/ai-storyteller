@@ -196,8 +196,14 @@ Deliver a satisfying, well-paced beat each turn — neither a one-liner nor a wa
 8. Introduce new plot elements, characters, or revelations organically and one at a time, ONLY when the user's direction invites them.
 
 ## FORMATTING
-- Write continuous prose. No chapter titles, headings, bullet lists, or section breaks.
+- Write continuous prose. No chapter titles, headings, bullet lists, tables, code blocks, or section breaks.
 - Place dialogue on its own lines where natural; use straight double quotes.
+- Inline formatting is allowed and SHOULD be used sparingly for effect:
+  - Use \`*italic*\` for internal thoughts / interior monologue, emotional emphasis, or foreign / specialized terms.
+    Example: \`*Gila, kenapa gue di sini.*\` or \`Gue benar-benar *tidak* mau ketemu dia.\`
+  - Use \`**bold**\` extremely rarely, only for a single explosive word or sound.
+- Do NOT use Markdown for anything else: no \`# heading\`, no \`- list\`, no \`[link](url)\`, no \`\`\`code\`\`\`, no tables, no horizontal rules.
+- Do NOT wrap entire paragraphs in italic or bold. Inline only.
 - No meta commentary ("Here is the next part..."). No out-of-character asides.
 - Do not end with a question to the user. End on a concrete sensory, emotional, or action beat that naturally invites their next move.`;
 
