@@ -321,6 +321,20 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     return reply.status(201).send(mem);
   });
 
+  app.patch("/api/memories/:memoryId", async (req) => {
+    const { memoryId } = req.params as { memoryId: string };
+    const body = validateBody(
+      z.object({
+        type: z.string().min(1).optional(),
+        content: z.string().min(1).optional(),
+        importance: z.number().int().min(1).max(5).optional(),
+        isPinned: z.boolean().optional(),
+      }),
+      req.body,
+    );
+    return memoriesService.updateMemory(memoryId, body);
+  });
+
   app.delete("/api/memories/:memoryId", async (req, reply) => {
     const { memoryId } = req.params as { memoryId: string };
     await memoriesService.deleteMemory(memoryId);

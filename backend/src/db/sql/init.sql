@@ -84,6 +84,12 @@ CREATE TABLE IF NOT EXISTS story_memories (
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Additive column: pinned memories are always surfaced into the prompt
+-- regardless of importance or recency. Uses IF NOT EXISTS so this is a
+-- no-op on databases that already have the column.
+ALTER TABLE story_memories
+  ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT FALSE;
+
 CREATE INDEX IF NOT EXISTS idx_story_memories_story_id ON story_memories(story_id);
 
 -- Full-text search index on memory content
