@@ -64,7 +64,7 @@
 
       <!-- Messages area -->
       <div
-        class="flex-1 overflow-y-auto px-4 md:px-8 py-6 relative"
+        class="flex-1 overflow-y-auto px-4 md:px-8 py-6 relative messages-scroll"
         ref="scrollEl"
         @scroll="handleScroll"
       >
@@ -325,7 +325,13 @@ const loadingOlder = ref(false);
 const lastUserMessage = ref<string | null>(null);
 const sidebarOpen = ref(false);
 const showJumpToBottom = ref(false);
+// autoStick stays on as long as the viewport is near the bottom. It flips
+// OFF the instant the user expresses intent to scroll up (wheel / touch /
+// PageUp / ArrowUp) and only re-engages when the user returns to bottom
+// manually (scroll down themselves or click the jump-to-bottom button).
 const autoStick = ref(true);
+let userScrollLockUntilBottom = false;
+let pendingScrollFrame: number | null = null;
 let abortController: AbortController | null = null;
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -356,10 +362,44 @@ const canRegenerate = computed(() => {
 });
 
 async function scrollToBottom(force = false) {
-  if (!autoStick.value && !force) return;
+  // Respect user intent: if they've scrolled up mid-stream, don't yank them
+  // back to bottom on each incoming chunk. Only `force=true` (send, regen,
+  // jump-to-bottom button, initial mount) overrides that.
+  if (!force) {
+    if (!autoStick.value || userScrollLockUntilBottom) return;
+  }
   await nextTick();
-  if (scrollEl.value) {
-    scrollEl.value.scrollTop = scrollEl.value.scrollHeight;
+  // Coalesce rapid streaming-chunk calls into one per animation frame so
+  // we don't fight the browser's scroll on every token.
+  if (pendingScrollFrame !== null) cancelAnimationFrame(pendingScrollFrame);
+  pendingScrollFrame = requestAnimationFrame(() => {
+    pendingScrollFrame = null;
+    if (scrollEl.value) {
+      scrollEl.value.scrollTop = scrollEl.value.scrollHeight;
+    }
+  });
+  if (force) {
+    userScrollLockUntilBottom = false;
+    autoStick.value = true;
+  }
+}
+
+// Immediately treat any explicit user scroll-up intent as a lock.
+function onUserScrollIntent(e: WheelEvent | TouchEvent | KeyboardEvent) {
+  if (!scrollEl.value) return;
+  let goingUp = false;
+  if (e instanceof WheelEvent) {
+    goingUp = e.deltaY < 0;
+  } else if (e instanceof KeyboardEvent) {
+    goingUp = ["ArrowUp", "PageUp", "Home"].includes(e.key);
+  } else {
+    // TouchEvent — treat any touchmove as potential user scroll; handleScroll
+    // will refine based on position.
+    goingUp = true;
+  }
+  if (goingUp) {
+    autoStick.value = false;
+    userScrollLockUntilBottom = true;
   }
 }
 
@@ -375,7 +415,15 @@ async function handleScroll() {
   if (!scrollEl.value) return;
   const el = scrollEl.value;
   const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-  autoStick.value = nearBottom;
+  // If the user has manually returned near the bottom, re-engage auto-stick
+  // and drop the lock. Otherwise, preserve their scroll-up intent so
+  // incoming chunks don't drag them back down.
+  if (nearBottom) {
+    userScrollLockUntilBottom = false;
+    autoStick.value = true;
+  } else if (!userScrollLockUntilBottom) {
+    autoStick.value = false;
+  }
   showJumpToBottom.value = !nearBottom && displayMessages.value.length > 0;
 
   if (loadingOlder.value || !store.hasMoreMessages) return;
@@ -421,11 +469,28 @@ onMounted(async () => {
   loadingMessages.value = false;
   await scrollToBottom(true);
   nextTick(autoResize);
+
+  // Attach intent listeners so the moment the user scrolls up (wheel,
+  // touch drag, arrow keys) we stop force-sticking to bottom, even if
+  // streaming chunks are still landing.
+  const el = scrollEl.value;
+  if (el) {
+    el.addEventListener("wheel", onUserScrollIntent, { passive: true });
+    el.addEventListener("touchmove", onUserScrollIntent, { passive: true });
+    el.addEventListener("keydown", onUserScrollIntent as EventListener);
+  }
 });
 
 onBeforeUnmount(() => {
   abortController?.abort();
   if (refreshTimer) clearTimeout(refreshTimer);
+  if (pendingScrollFrame !== null) cancelAnimationFrame(pendingScrollFrame);
+  const el = scrollEl.value;
+  if (el) {
+    el.removeEventListener("wheel", onUserScrollIntent);
+    el.removeEventListener("touchmove", onUserScrollIntent);
+    el.removeEventListener("keydown", onUserScrollIntent as EventListener);
+  }
 });
 
 watch(

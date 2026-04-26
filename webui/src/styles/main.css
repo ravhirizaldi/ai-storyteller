@@ -117,6 +117,14 @@
     @apply mt-3;
   }
 
+  /* Messages scroll area — opt out of browser scroll-anchoring so streaming
+     content can't yank the viewport away from where the user scrolled to,
+     and contain overscroll so rubber-banding doesn't bubble to body. */
+  .messages-scroll {
+    overflow-anchor: none;
+    overscroll-behavior: contain;
+  }
+
   /* ─── Sidebar ─── */
   .sidebar {
     @apply bg-white border-r border-ink-100 flex flex-col h-screen
