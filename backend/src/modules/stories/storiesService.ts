@@ -237,17 +237,24 @@ export async function resetStoryProgress(id: string): Promise<void> {
 export async function applyStorySummary(
   id: string,
   summary: string,
-  upTo: Date,
+  upToMessageId: string,
 ): Promise<Story> {
   await getStoryById(id);
+  // Resolve the cutoff timestamp via a subquery so it's copied from
+  // story_messages.created_at at full PostgreSQL µs precision. Passing
+  // a JS Date through the pg driver would round-trim to ms and let
+  // the last summarized message leak back into live context via
+  // `created_at > cutoff` comparisons elsewhere.
   const rows = await query<Story>(
     `UPDATE stories
        SET story_summary = $2,
-           summarized_up_to_created_at = $3,
+           summarized_up_to_created_at =
+             (SELECT created_at FROM story_messages
+               WHERE id = $3 AND story_id = $1),
            updated_at = NOW()
      WHERE id = $1
      RETURNING *`,
-    [id, summary, upTo],
+    [id, summary, upToMessageId],
   );
   return rows[0]!;
 }

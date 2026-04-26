@@ -148,8 +148,14 @@ export async function compactStory(
     temperature: 0.3,
   });
 
-  const cutoff = toSummarize[toSummarize.length - 1]!.created_at;
-  const story = await applyStorySummary(storyId, summary.trim(), cutoff);
+  // Pass the message id (not its JS Date) so the cutoff timestamp is
+  // copied at full PostgreSQL precision — see applyStorySummary.
+  const cutoffMessageId = toSummarize[toSummarize.length - 1]!.id;
+  const story = await applyStorySummary(
+    storyId,
+    summary.trim(),
+    cutoffMessageId,
+  );
 
   return {
     story,

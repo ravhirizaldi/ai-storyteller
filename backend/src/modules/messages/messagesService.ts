@@ -26,16 +26,21 @@ export async function getMessagesByStory(
 export async function getRecentMessages(
   storyId: string,
   limit = 12,
-  sinceCreatedAt?: Date | null,
+  applyCompactionCutoff = false,
 ): Promise<StoryMessage[]> {
-  // If the story has been compacted, `sinceCreatedAt` excludes anything
-  // already folded into the summary so we don't double-count old turns
-  // in the model context.
+  // If the story has been compacted, we need to exclude anything already
+  // folded into the summary. We pull the cutoff via a subquery against
+  // the stories table so the comparison stays in PostgreSQL at full
+  // TIMESTAMPTZ µs precision. Round-tripping the cutoff through a JS
+  // Date would truncate to ms and let the last summarized message leak
+  // back into the live context.
   const params: unknown[] = [storyId];
   let q = `SELECT * FROM story_messages WHERE story_id = $1`;
-  if (sinceCreatedAt) {
-    q += ` AND created_at > $${params.length + 1}`;
-    params.push(sinceCreatedAt);
+  if (applyCompactionCutoff) {
+    q += ` AND (
+      (SELECT summarized_up_to_created_at FROM stories WHERE id = $1) IS NULL
+      OR created_at > (SELECT summarized_up_to_created_at FROM stories WHERE id = $1)
+    )`;
   }
   q += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
   params.push(limit);
