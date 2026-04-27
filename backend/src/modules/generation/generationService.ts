@@ -1,7 +1,11 @@
 import { getStoryById } from "../stories/storiesService";
 import { getCharactersByStory } from "../characters/charactersService";
 import { getRecentMessages, createMessage } from "../messages/messagesService";
-import { searchMemoriesByText } from "../memories/memoriesService";
+import { KEEP_LAST_N_TURNS } from "./compactService";
+import {
+  searchMemoriesByText,
+  getPinnedMemories,
+} from "../memories/memoriesService";
 import { getActivePlotThreads } from "../plotThreads/plotThreadsService";
 import { generateText } from "../../providers/grok/grokText";
 import { streamText } from "../../providers/grok/grokStreaming";
@@ -87,7 +91,15 @@ ${story.current_timeline_state}`);
     sections.push(`## ACTIVE PLOT THREADS\n${threadText}`);
   }
 
-  // 8. Relevant Long-Term Memories
+  // 8. Story-so-far summary (only present after compact). Older messages
+  //    folded into this summary are excluded from the raw message list
+  //    below, saving tokens without losing continuity.
+  if (story.story_summary) {
+    sections.push(`## STORY SO FAR (CONDENSED)
+${story.story_summary}`);
+  }
+
+  // 9. Relevant Long-Term Memories
   if (relevantMemories.length > 0) {
     sections.push(
       `## RELEVANT LONG-TERM MEMORIES\n${relevantMemories.map((m) => `- ${m}`).join("\n")}`,
@@ -216,12 +228,19 @@ export async function generateStoryStream(
       getRecentMessages(input.storyId, 10),
     ]);
 
-  // 2. Search relevant memories using the user message as search text
-  const relevantMemories = await searchMemoriesByText(
-    input.storyId,
-    input.userMessage,
-    6,
-  );
+  // 2. Pull relevant memories: pinned-always + FTS-matched by user message.
+  //    Pinned entries are surfaced unconditionally so the model can't "forget"
+  //    a fact the user explicitly marked important.
+  const [pinned, matched] = await Promise.all([
+    getPinnedMemories(input.storyId),
+    searchMemoriesByText(input.storyId, input.userMessage, 6),
+  ]);
+  const seen = new Set<string>();
+  const relevantMemories = [...pinned, ...matched].filter((m) => {
+    if (seen.has(m.id)) return false;
+    seen.add(m.id);
+    return true;
+  });
 
   const settings = {
     mode: input.generationOverride?.mode ?? story.generation_mode ?? "balanced",
@@ -324,11 +343,18 @@ export async function generateStoryText(input: GenerateStoryInput): Promise<{
       getRecentMessages(input.storyId, 10),
     ]);
 
-  const relevantMemories = await searchMemoriesByText(
-    input.storyId,
-    input.userMessage,
-    6,
-  );
+  // Union pinned + FTS-matched memories, dedup by id. Matches the
+  // non-streaming path so the model sees the same memory shape.
+  const [pinnedStream, matchedStream] = await Promise.all([
+    getPinnedMemories(input.storyId),
+    searchMemoriesByText(input.storyId, input.userMessage, 6),
+  ]);
+  const seenStream = new Set<string>();
+  const relevantMemories = [...pinnedStream, ...matchedStream].filter((m) => {
+    if (seenStream.has(m.id)) return false;
+    seenStream.add(m.id);
+    return true;
+  });
 
   const settings = {
     mode: input.generationOverride?.mode ?? story.generation_mode ?? "balanced",

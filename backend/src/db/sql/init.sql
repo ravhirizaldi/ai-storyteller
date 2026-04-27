@@ -38,6 +38,12 @@ ALTER TABLE stories ADD COLUMN IF NOT EXISTS allow_time_skip BOOLEAN NOT NULL DE
 ALTER TABLE stories ADD COLUMN IF NOT EXISTS allow_location_change BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE stories ADD COLUMN IF NOT EXISTS allow_major_plot_progress BOOLEAN NOT NULL DEFAULT false;
 
+-- Context compaction: when the chat grows past the budget, everything older
+-- than summarized_up_to_created_at is replaced in the prompt by story_summary.
+-- The original messages are NEVER deleted — they stay visible in the UI.
+ALTER TABLE stories ADD COLUMN IF NOT EXISTS story_summary TEXT;
+ALTER TABLE stories ADD COLUMN IF NOT EXISTS summarized_up_to_created_at TIMESTAMPTZ;
+
 -- -----------------------------------------------
 -- CHARACTERS
 -- -----------------------------------------------
@@ -83,6 +89,12 @@ CREATE TABLE IF NOT EXISTS story_memories (
   source_message_id     UUID REFERENCES story_messages(id) ON DELETE SET NULL,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Additive column: pinned memories are always surfaced into the prompt
+-- regardless of importance or recency. Uses IF NOT EXISTS so this is a
+-- no-op on databases that already have the column.
+ALTER TABLE story_memories
+  ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE INDEX IF NOT EXISTS idx_story_memories_story_id ON story_memories(story_id);
 

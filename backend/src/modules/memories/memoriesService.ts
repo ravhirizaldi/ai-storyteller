@@ -5,8 +5,12 @@ import { NotFoundError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 
 export async function getMemoriesByStory(storyId: string): Promise<StoryMemory[]> {
+  // Pinned memories float to the top; within each group we fall back to
+  // importance-then-recency so the sidebar order matches what the prompt
+  // builder uses.
   return query<StoryMemory>(
-    'SELECT * FROM story_memories WHERE story_id = $1 ORDER BY importance DESC, created_at DESC',
+    `SELECT * FROM story_memories WHERE story_id = $1
+     ORDER BY is_pinned DESC, importance DESC, created_at DESC`,
     [storyId],
   );
 }
@@ -39,6 +43,72 @@ export async function deleteMemory(id: string): Promise<void> {
   const mem = await queryOne<StoryMemory>('SELECT id FROM story_memories WHERE id = $1', [id]);
   if (!mem) throw new NotFoundError('Memory', id);
   await query('DELETE FROM story_memories WHERE id = $1', [id]);
+}
+
+export interface UpdateMemoryInput {
+  type?: string;
+  content?: string;
+  importance?: number;
+  isPinned?: boolean;
+}
+
+/**
+ * Partial update. Only fields present in the input are touched; everything
+ * else is left alone. Returns the refreshed row.
+ */
+export async function updateMemory(
+  id: string,
+  input: UpdateMemoryInput,
+): Promise<StoryMemory> {
+  const sets: string[] = [];
+  const params: unknown[] = [];
+  let i = 1;
+  if (input.type !== undefined) {
+    sets.push(`type = $${i++}`);
+    params.push(input.type);
+  }
+  if (input.content !== undefined) {
+    sets.push(`content = $${i++}`);
+    params.push(input.content);
+  }
+  if (input.importance !== undefined) {
+    sets.push(`importance = $${i++}`);
+    params.push(input.importance);
+  }
+  if (input.isPinned !== undefined) {
+    sets.push(`is_pinned = $${i++}`);
+    params.push(input.isPinned);
+  }
+  if (sets.length === 0) {
+    // No-op update — just return the current row.
+    const row = await queryOne<StoryMemory>(
+      'SELECT * FROM story_memories WHERE id = $1',
+      [id],
+    );
+    if (!row) throw new NotFoundError('Memory', id);
+    return row;
+  }
+  params.push(id);
+  const rows = await query<StoryMemory>(
+    `UPDATE story_memories SET ${sets.join(', ')} WHERE id = $${i} RETURNING *`,
+    params,
+  );
+  const row = rows[0];
+  if (!row) throw new NotFoundError('Memory', id);
+  return row;
+}
+
+/**
+ * Return all pinned memories for a story, newest first. The prompt builder
+ * always unions these in on top of FTS/recency-selected memories so the
+ * model never loses sight of something the user explicitly said matters.
+ */
+export async function getPinnedMemories(storyId: string): Promise<StoryMemory[]> {
+  return query<StoryMemory>(
+    `SELECT * FROM story_memories WHERE story_id = $1 AND is_pinned = TRUE
+     ORDER BY importance DESC, created_at DESC`,
+    [storyId],
+  );
 }
 
 /**

@@ -17,6 +17,14 @@ export interface Story {
   allow_time_skip: boolean;
   allow_location_change: boolean;
   allow_major_plot_progress: boolean;
+  /** Condensed "story so far" that replaces older messages in the prompt
+   *  once the chat grows past the context budget. Null until the first
+   *  compact operation runs. */
+  story_summary: string | null;
+  /** Messages with created_at <= this timestamp are folded into
+   *  `story_summary` and excluded from the prompt's recent-messages list.
+   *  UI still shows them as normal. */
+  summarized_up_to_created_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -52,6 +60,9 @@ export interface StoryMemory {
   embedding: number[] | null;
   importance: number;
   source_message_id: string | null;
+  /** If true, the memory is always surfaced into the prompt regardless
+   *  of importance/recency. Controlled from the sidebar's pin toggle. */
+  is_pinned: boolean;
   created_at: Date;
 }
 

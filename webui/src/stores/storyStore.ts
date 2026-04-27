@@ -142,6 +142,22 @@ export const useStoryStore = defineStore('story', () => {
     return mem
   }
 
+  async function updateMemory(
+    id: string,
+    data: Parameters<typeof memoriesApi.update>[1],
+  ) {
+    const mem = await memoriesApi.update(id, data)
+    const idx = memories.value.findIndex((m) => m.id === id)
+    if (idx >= 0) memories.value[idx] = mem
+    // Re-sort so pinned floats to the top and ordering matches the server.
+    memories.value = [...memories.value].sort((a, b) => {
+      if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1
+      if (a.importance !== b.importance) return b.importance - a.importance
+      return b.created_at.localeCompare(a.created_at)
+    })
+    return mem
+  }
+
   async function deleteMemory(id: string) {
     await memoriesApi.delete(id)
     memories.value = memories.value.filter((m) => m.id !== id)
@@ -188,7 +204,7 @@ export const useStoryStore = defineStore('story', () => {
     fetchStories, fetchStory, createStory, updateStory, deleteStory, resetStoryProgress,
     fetchMessages, appendMessage, patchMessageContent, removeMessages,
     fetchCharacters, createCharacter, updateCharacter, deleteCharacter,
-    fetchMemories, createMemory, deleteMemory,
+    fetchMemories, createMemory, updateMemory, deleteMemory,
     fetchPlotThreads, createPlotThread, updatePlotThread, deletePlotThread,
     clearStoryData,
   }
