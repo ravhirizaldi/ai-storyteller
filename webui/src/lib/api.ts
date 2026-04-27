@@ -97,6 +97,7 @@ export interface StoryMemory {
   content: string;
   importance: number;
   source_message_id: string | null;
+  is_pinned: boolean;
   created_at: string;
 }
 
@@ -201,6 +202,19 @@ export const memoriesApi = {
   ) =>
     request<StoryMemory>(`/api/stories/${storyId}/memories`, {
       method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (
+    id: string,
+    data: {
+      type?: string;
+      content?: string;
+      importance?: number;
+      isPinned?: boolean;
+    },
+  ) =>
+    request<StoryMemory>(`/api/memories/${id}`, {
+      method: "PATCH",
       body: JSON.stringify(data),
     }),
   delete: (id: string) =>
