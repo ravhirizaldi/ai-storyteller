@@ -154,6 +154,32 @@
         </button>
       </div>
 
+      <!-- Undo regen toast — appears briefly after a regen so the user
+           can revert to the pre-regen response. -->
+      <div
+        v-if="canUndoRegen"
+        class="mx-4 md:mx-6 mb-2 rounded-lg bg-sage-50 border border-sage-200 px-3 py-2 flex items-center gap-2 text-xs dark:bg-sage-900/40 dark:border-sage-800"
+      >
+        <RotateCcw class="w-3.5 h-3.5 text-sage-700 dark:text-sage-300 flex-shrink-0" />
+        <p class="flex-1 text-sage-800 dark:text-sage-100">
+          Regen selesai. Mau kembali ke respons sebelumnya?
+        </p>
+        <button
+          class="text-xs font-medium px-2.5 py-1 rounded-md bg-sage-700 text-white hover:bg-sage-800 disabled:opacity-40"
+          :disabled="isGenerating"
+          @click="undoRegenerate"
+        >
+          Undo
+        </button>
+        <button
+          class="text-sage-500 hover:text-sage-800 dark:text-sage-400 dark:hover:text-sage-200"
+          @click="dismissUndo"
+          title="Tutup"
+        >
+          <X class="w-3.5 h-3.5" />
+        </button>
+      </div>
+
       <!-- Error banner -->
       <div
         v-if="genError"
@@ -583,6 +609,7 @@ onBeforeUnmount(() => {
   abortController?.abort();
   if (refreshTimer) clearTimeout(refreshTimer);
   if (pendingScrollFrame !== null) cancelAnimationFrame(pendingScrollFrame);
+  if (undoHideTimer) clearTimeout(undoHideTimer);
   const el = scrollEl.value;
   if (el) {
     el.removeEventListener("wheel", onUserScrollIntent);
@@ -650,6 +677,10 @@ async function onEditMessage(messageId: string, newContent: string) {
 }
 
 async function onDeleteMessage(messageId: string) {
+  // Belt-and-suspenders: if the user deletes anything while an undo toast
+  // is live, dismiss it. undoRegenerate also guards by messageId, but
+  // removing the toast pre-emptively avoids a confusing armed UI state.
+  dismissUndo();
   try {
     await messagesApi.deleteTurn(storyId.value, messageId);
     // Mirror the server's deleteTurnStartingAt rule locally so we don't
@@ -686,6 +717,11 @@ async function runGeneration(message: string) {
   streamingText.value = "";
   autoStick.value = true;
   lastUserMessage.value = message;
+  // Clear any prior undo toast before starting a fresh generation. A
+  // left-over snapshot from an earlier regen would otherwise point at
+  // whichever message happens to be the newest assistant after THIS
+  // turn — not the one it was captured for.
+  if (!isRegenerating) dismissUndo();
 
   // Optimistic user message
   const tempUser: StoryMessage = {
@@ -731,6 +767,12 @@ async function runGeneration(message: string) {
       );
       if (!userInput.value.trim()) userInput.value = message;
       nextTick(autoResize);
+      // Critical: clear any pending regen state so the NEXT successful
+      // generation doesn't mistakenly arm the undo toast with content
+      // that's been server-deleted. finalizeGeneration() is never called
+      // on the error path, so we have to do it here.
+      isRegenerating = false;
+      pendingUndoContent = null;
     },
   });
 }
@@ -750,6 +792,15 @@ async function finalizeGeneration(text: string) {
   abortController = null;
   await scrollToBottom();
 
+  // Snapshot the undo intent immediately, but defer arming the actual
+  // toast until after the refresh has landed the real server-side
+  // message id. Clicking Undo while temp-ast-* is still in
+  // displayMessages would PATCH a fake id and 404.
+  const undoToArm =
+    isRegenerating && pendingUndoContent ? pendingUndoContent : null;
+  isRegenerating = false;
+  pendingUndoContent = null;
+
   // Single debounced refresh. Background memory job is async on the backend —
   // give it a moment, then resync story/messages/memories once.
   if (refreshTimer) clearTimeout(refreshTimer);
@@ -763,6 +814,17 @@ async function finalizeGeneration(text: string) {
     ]);
     if (!isGenerating.value) {
       displayMessages.value = [...store.sortedMessages];
+    }
+    // Now that real ids are loaded, it's safe to surface the undo toast.
+    // If the user has since started a new generation, skip — that path
+    // called dismissUndo and we don't want to re-arm stale state.
+    if (undoToArm && !isGenerating.value) {
+      const newestAssistant = [...displayMessages.value]
+        .reverse()
+        .find((m) => m.role === "assistant" && !m.id.startsWith("temp-"));
+      if (newestAssistant) {
+        armUndo(newestAssistant.id, undoToArm);
+      }
     }
   }, 3000);
 }
@@ -824,6 +886,58 @@ async function retryLast() {
   await runGeneration(msg);
 }
 
+// ─── Regen undo ──────────────────────────────────────────
+// When the user regenerates, we snapshot the old assistant reply so they can
+// roll back if the new one is worse. Frontend-only state — lost on reload,
+// which is an acceptable trade-off vs. persisting a history column.
+// Pinned to a specific messageId so a later delete / regen / out-of-band
+// mutation can't cause Undo to overwrite an unrelated assistant bubble.
+const undoSnapshot = ref<{ messageId: string; content: string } | null>(
+  null,
+);
+let undoHideTimer: ReturnType<typeof setTimeout> | null = null;
+const canUndoRegen = computed(() => !!undoSnapshot.value);
+
+function armUndo(messageId: string, content: string) {
+  undoSnapshot.value = { messageId, content };
+  if (undoHideTimer) clearTimeout(undoHideTimer);
+  // Auto-dismiss after 2 minutes so the pill doesn't linger forever.
+  undoHideTimer = setTimeout(() => {
+    undoSnapshot.value = null;
+  }, 120_000);
+}
+
+function dismissUndo() {
+  undoSnapshot.value = null;
+  if (undoHideTimer) clearTimeout(undoHideTimer);
+}
+
+async function undoRegenerate() {
+  const snap = undoSnapshot.value;
+  if (!snap || isGenerating.value) return;
+  // Look up the exact message we captured. If it's gone (e.g. the user
+  // deleted the regenerated reply from the per-bubble trash), abort
+  // instead of silently overwriting some other assistant bubble.
+  const target = displayMessages.value.find((m) => m.id === snap.messageId);
+  if (!target || target.id.startsWith("temp-")) {
+    dismissUndo();
+    return;
+  }
+  try {
+    await messagesApi.update(storyId.value, target.id, snap.content);
+    target.content = snap.content;
+    // Pull a fresh copy so any server-side normalization lands locally.
+    await store.fetchMessages(storyId.value);
+    if (!isGenerating.value) {
+      displayMessages.value = [...store.sortedMessages];
+    }
+    dismissUndo();
+  } catch (err) {
+    genError.value =
+      err instanceof Error ? err.message : "Gagal mengembalikan respons.";
+  }
+}
+
 async function regenerateLast() {
   if (isGenerating.value) return;
   // Find the last user message in the conversation.
@@ -832,6 +946,12 @@ async function regenerateLast() {
   while (i >= 0 && msgs[i]!.role !== "user") i--;
   if (i < 0) return;
   const userMsg = msgs[i]!;
+
+  // Capture the old assistant content BEFORE deleting so we can restore
+  // it if the user doesn't like the regenerated version.
+  const oldAssistant = msgs
+    .slice(i + 1)
+    .find((m) => m.role === "assistant");
 
   // Delete the stored user+assistant pair on the server BEFORE regenerating —
   // otherwise the next server-side generate call would duplicate both rows
@@ -849,6 +969,15 @@ async function regenerateLast() {
   // Drop the trailing user+assistant pair from the display so the regenerated
   // bubble takes their place visually.
   displayMessages.value = msgs.slice(0, i);
+  isRegenerating = true;
+  if (oldAssistant?.content) {
+    pendingUndoContent = oldAssistant.content;
+  }
   await runGeneration(userMsg.content);
 }
+
+// Set by regenerateLast() so finalizeGeneration() knows to arm the undo
+// affordance after the refresh round-trip lands new message ids.
+let isRegenerating = false;
+let pendingUndoContent: string | null = null;
 </script>
