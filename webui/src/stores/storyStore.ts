@@ -97,6 +97,19 @@ export const useStoryStore = defineStore('story', () => {
     messages.value.push(msg)
   }
 
+  /** In-place update so edits don't blow away paginated history. */
+  function patchMessageContent(messageId: string, content: string) {
+    const m = messages.value.find((x) => x.id === messageId)
+    if (m) m.content = content
+  }
+
+  /** In-place removal so deletes don't blow away paginated history. */
+  function removeMessages(ids: string[]) {
+    if (ids.length === 0) return
+    const set = new Set(ids)
+    messages.value = messages.value.filter((m) => !set.has(m.id))
+  }
+
   async function fetchCharacters(storyId: string) {
     characters.value = await charactersApi.list(storyId)
   }
@@ -173,7 +186,7 @@ export const useStoryStore = defineStore('story', () => {
     activeThreads, sortedMessages,
     // Actions
     fetchStories, fetchStory, createStory, updateStory, deleteStory, resetStoryProgress,
-    fetchMessages, appendMessage,
+    fetchMessages, appendMessage, patchMessageContent, removeMessages,
     fetchCharacters, createCharacter, updateCharacter, deleteCharacter,
     fetchMemories, createMemory, deleteMemory,
     fetchPlotThreads, createPlotThread, updatePlotThread, deletePlotThread,

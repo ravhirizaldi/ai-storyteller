@@ -4,7 +4,7 @@
     <div class="flex flex-col flex-1 overflow-hidden min-w-0">
       <!-- Header -->
       <div
-        class="bg-white border-b border-ink-100 px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0 gap-2"
+        class="bg-white border-b border-ink-100 px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0 gap-2 dark:bg-ink-900 dark:border-ink-800"
       >
         <div class="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
           <RouterLink
@@ -15,7 +15,9 @@
             <ArrowLeft class="w-4 h-4" />
           </RouterLink>
           <div class="min-w-0 flex-1">
-            <h1 class="font-semibold text-ink-900 text-sm truncate">
+            <h1
+              class="font-semibold text-ink-900 text-sm truncate dark:text-ink-100"
+            >
               {{ currentStory?.title ?? "Memuat..." }}
             </h1>
             <div class="flex items-center gap-2">
@@ -44,6 +46,14 @@
           >
             <BookMarked class="w-3.5 h-3.5" /> Bible
           </RouterLink>
+          <button
+            class="btn-ghost btn-sm p-2"
+            :title="theme === 'dark' ? 'Mode terang' : 'Mode gelap'"
+            @click="toggleTheme"
+          >
+            <Sun v-if="theme === 'dark'" class="w-4 h-4" />
+            <Moon v-else class="w-4 h-4" />
+          </button>
           <RouterLink
             :to="`/stories/${storyId}/settings`"
             class="btn-ghost btn-sm p-2"
@@ -77,13 +87,17 @@
           class="flex flex-col items-center justify-center h-full gap-4 text-center py-12 max-w-md mx-auto"
         >
           <div
-            class="w-16 h-16 rounded-2xl bg-parchment-200 flex items-center justify-center"
+            class="w-16 h-16 rounded-2xl bg-parchment-200 flex items-center justify-center dark:bg-ink-800"
           >
             <Feather class="w-8 h-8 text-ink-400" />
           </div>
           <div>
-            <p class="font-semibold text-ink-800 text-lg">Mulai ceritamu</p>
-            <p class="text-sm text-ink-500 mt-1.5 leading-relaxed">
+            <p
+              class="font-semibold text-ink-800 text-lg dark:text-ink-100"
+            >
+              Mulai ceritamu
+            </p>
+            <p class="text-sm text-ink-500 mt-1.5 leading-relaxed dark:text-ink-400">
               Tulis arahan di bawah untuk menghasilkan adegan pembuka. Coba
               sesuatu seperti
               <em class="italic"
@@ -101,6 +115,9 @@
             v-for="msg in displayMessages"
             :key="msg.id"
             :message="msg"
+            :can-delete="!isGenerating && !msg.id.startsWith('temp-')"
+            :on-edit-async="onEditMessage"
+            @delete="onDeleteMessage"
           />
         </div>
 
@@ -110,13 +127,13 @@
           class="flex gap-3 mb-6 max-w-3xl mx-auto w-full"
         >
           <div
-            class="w-7 h-7 rounded-full bg-ink-800 flex items-center justify-center text-xs font-semibold text-parchment-50 mt-1 flex-shrink-0"
+            class="w-7 h-7 rounded-full bg-ink-800 flex items-center justify-center text-xs font-semibold text-parchment-50 mt-1 flex-shrink-0 dark:bg-ink-100 dark:text-ink-900"
           >
             AI
           </div>
           <div class="flex-1 min-w-0">
             <div
-              class="bg-white border border-ink-100 rounded-2xl rounded-tl-sm px-4 py-3"
+              class="bg-white border border-ink-100 rounded-2xl rounded-tl-sm px-4 py-3 dark:bg-ink-900/60 dark:border-ink-800"
             >
               <div
                 class="prose-story text-[15px] whitespace-pre-wrap streaming-cursor"
@@ -134,6 +151,32 @@
           title="Loncat ke pesan terbaru"
         >
           <ArrowDown class="w-4 h-4" />
+        </button>
+      </div>
+
+      <!-- Undo regen toast — appears briefly after a regen so the user
+           can revert to the pre-regen response. -->
+      <div
+        v-if="canUndoRegen"
+        class="mx-4 md:mx-6 mb-2 rounded-lg bg-sage-50 border border-sage-200 px-3 py-2 flex items-center gap-2 text-xs dark:bg-sage-900/40 dark:border-sage-800"
+      >
+        <RotateCcw class="w-3.5 h-3.5 text-sage-700 dark:text-sage-300 flex-shrink-0" />
+        <p class="flex-1 text-sage-800 dark:text-sage-100">
+          Regen selesai. Mau kembali ke respons sebelumnya?
+        </p>
+        <button
+          class="text-xs font-medium px-2.5 py-1 rounded-md bg-sage-700 text-white hover:bg-sage-800 disabled:opacity-40"
+          :disabled="isGenerating"
+          @click="undoRegenerate"
+        >
+          Undo
+        </button>
+        <button
+          class="text-sage-500 hover:text-sage-800 dark:text-sage-400 dark:hover:text-sage-200"
+          @click="dismissUndo"
+          title="Tutup"
+        >
+          <X class="w-3.5 h-3.5" />
         </button>
       </div>
 
@@ -161,14 +204,14 @@
 
       <!-- Input area -->
       <div
-        class="bg-gradient-to-b from-transparent to-parchment-50/60 px-3 md:px-6 pt-2 pb-3 md:pb-4 flex-shrink-0"
+        class="bg-gradient-to-b from-transparent to-parchment-50/60 px-3 md:px-6 pt-2 pb-3 md:pb-4 flex-shrink-0 dark:to-ink-950/70"
       >
         <div class="max-w-3xl mx-auto">
           <!-- Composer card: toolbar + textarea + footer inside one rounded shell -->
           <div class="composer overflow-hidden">
             <!-- Top toolbar: mode / scene-lock / temp / regen -->
             <div
-              class="flex items-center justify-between gap-2 flex-wrap px-3 pt-2.5 pb-2 border-b border-ink-100/60"
+              class="flex items-center justify-between gap-2 flex-wrap px-3 pt-2.5 pb-2 border-b border-ink-100/60 dark:border-ink-800/70"
             >
               <div class="flex items-center gap-2 flex-wrap min-w-0">
                 <div class="relative" :title="modeDescription">
@@ -227,7 +270,7 @@
             <div class="flex gap-2 md:gap-3 items-end px-3 pt-2.5 pb-2.5">
               <textarea
                 v-model="userInput"
-                class="flex-1 min-h-[44px] max-h-[40vh] resize-none bg-transparent border-0 outline-none focus:ring-0 px-1 py-1 text-[15px] leading-[1.55] text-ink-900 placeholder:text-ink-400"
+                class="flex-1 min-h-[44px] max-h-[40vh] resize-none bg-transparent border-0 outline-none focus:ring-0 px-1 py-1 text-[15px] leading-[1.55] text-ink-900 placeholder:text-ink-400 dark:text-ink-100 dark:placeholder:text-ink-500"
                 :placeholder="inputPlaceholder"
                 :disabled="isGenerating"
                 @keydown="onKeydown"
@@ -259,18 +302,18 @@
 
             <!-- Footer: hint + counter -->
             <div
-              class="flex items-center justify-between gap-2 px-3 pb-2 text-[11px] text-ink-400"
+              class="flex items-center justify-between gap-2 px-3 pb-2 text-[11px] text-ink-400 dark:text-ink-500"
             >
               <p class="flex items-center gap-1.5 truncate">
                 <Zap class="w-3 h-3 flex-shrink-0" />
                 <span class="truncate">
                   <kbd
-                    class="px-1 py-0.5 rounded border border-ink-200 bg-parchment-50 text-[10px] text-ink-500"
+                    class="px-1 py-0.5 rounded border border-ink-200 bg-parchment-50 text-[10px] text-ink-500 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-400"
                     >Enter</kbd
                   >
                   kirim ·
                   <kbd
-                    class="px-1 py-0.5 rounded border border-ink-200 bg-parchment-50 text-[10px] text-ink-500"
+                    class="px-1 py-0.5 rounded border border-ink-200 bg-parchment-50 text-[10px] text-ink-500 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-400"
                     >Shift+Enter</kbd
                   >
                   baris baru
@@ -295,7 +338,7 @@
 
     <!-- Right sidebar (fixed on desktop, animated drawer on smaller screens) -->
     <aside
-      class="border-l border-ink-100 bg-white flex-shrink-0 overflow-hidden flex-col z-20 w-72 xl:static xl:flex xl:translate-x-0 xl:shadow-none fixed right-0 top-0 bottom-0 sidebar-drawer flex"
+      class="border-l border-ink-100 bg-white flex-shrink-0 overflow-hidden flex-col z-20 w-72 xl:static xl:flex xl:translate-x-0 xl:shadow-none fixed right-0 top-0 bottom-0 sidebar-drawer flex dark:bg-ink-900 dark:border-ink-800"
       :class="[
         sidebarOpen
           ? 'translate-x-0 shadow-2xl xl:shadow-none'
@@ -352,7 +395,10 @@ import {
   Lock,
   LockOpen,
   Thermometer,
+  Sun,
+  Moon,
 } from "lucide-vue-next";
+import { useTheme } from "../composables/useTheme";
 import { useStoryStore } from "../stores/storyStore";
 import MessageBubble from "../components/story/MessageBubble.vue";
 import StorySidebar from "../components/story/StorySidebar.vue";
@@ -364,6 +410,7 @@ import { renderInlineMarkdown } from "../lib/inlineMarkdown";
 
 const route = useRoute();
 const store = useStoryStore();
+const { theme, toggle: toggleTheme } = useTheme();
 
 const storyId = computed(() => route.params.storyId as string);
 const currentStory = computed(() => store.currentStory);
@@ -536,6 +583,7 @@ onMounted(async () => {
 
   displayMessages.value = [...store.sortedMessages];
   loadingMessages.value = false;
+  loadDraft();
   await scrollToBottom(true);
   nextTick(autoResize);
 
@@ -561,6 +609,7 @@ onBeforeUnmount(() => {
   abortController?.abort();
   if (refreshTimer) clearTimeout(refreshTimer);
   if (pendingScrollFrame !== null) cancelAnimationFrame(pendingScrollFrame);
+  if (undoHideTimer) clearTimeout(undoHideTimer);
   const el = scrollEl.value;
   if (el) {
     el.removeEventListener("wheel", onUserScrollIntent);
@@ -588,6 +637,73 @@ function onKeydown(e: KeyboardEvent) {
   if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
     generate();
+    return;
+  }
+  // ArrowUp on an empty composer: recall the last user message (terminal-style
+  // history). Doesn't overwrite content you've already typed.
+  if (e.key === "ArrowUp" && !userInput.value) {
+    const lastUser = [...displayMessages.value]
+      .reverse()
+      .find((m) => m.role === "user");
+    if (lastUser && lastUser.content) {
+      e.preventDefault();
+      userInput.value = lastUser.content;
+      nextTick(() => {
+        autoResize();
+        inputEl.value?.setSelectionRange(
+          lastUser.content.length,
+          lastUser.content.length,
+        );
+      });
+    }
+  }
+}
+
+async function onEditMessage(messageId: string, newContent: string) {
+  try {
+    await messagesApi.update(storyId.value, messageId, newContent);
+    // Mutate in place rather than refetch — refetching the first page
+    // would truncate paginated older messages back to the latest 10.
+    const local = displayMessages.value.find((m) => m.id === messageId);
+    if (local) local.content = newContent;
+    store.patchMessageContent(messageId, newContent);
+  } catch (err) {
+    genError.value =
+      err instanceof Error ? err.message : "Gagal menyimpan perubahan.";
+    // Re-throw so the MessageBubble keeps its edit form open and the
+    // user doesn't silently lose their draft on a failed PATCH.
+    throw err;
+  }
+}
+
+async function onDeleteMessage(messageId: string) {
+  // Belt-and-suspenders: if the user deletes anything while an undo toast
+  // is live, dismiss it. undoRegenerate also guards by messageId, but
+  // removing the toast pre-emptively avoids a confusing armed UI state.
+  dismissUndo();
+  try {
+    await messagesApi.deleteTurn(storyId.value, messageId);
+    // Mirror the server's deleteTurnStartingAt rule locally so we don't
+    // need to refetch the first page (which would nuke paginated
+    // history). If the anchor is a user message, also drop the
+    // immediately-following assistant reply.
+    const idx = displayMessages.value.findIndex((m) => m.id === messageId);
+    if (idx >= 0) {
+      const anchor = displayMessages.value[idx]!;
+      const toRemove: string[] = [anchor.id];
+      if (anchor.role === "user") {
+        const next = displayMessages.value[idx + 1];
+        if (next && next.role === "assistant") toRemove.push(next.id);
+      }
+      const removeSet = new Set(toRemove);
+      displayMessages.value = displayMessages.value.filter(
+        (m) => !removeSet.has(m.id),
+      );
+      store.removeMessages(toRemove);
+    }
+  } catch (err) {
+    genError.value =
+      err instanceof Error ? err.message : "Gagal menghapus pesan.";
   }
 }
 
@@ -601,6 +717,11 @@ async function runGeneration(message: string) {
   streamingText.value = "";
   autoStick.value = true;
   lastUserMessage.value = message;
+  // Clear any prior undo toast before starting a fresh generation. A
+  // left-over snapshot from an earlier regen would otherwise point at
+  // whichever message happens to be the newest assistant after THIS
+  // turn — not the one it was captured for.
+  if (!isRegenerating) dismissUndo();
 
   // Optimistic user message
   const tempUser: StoryMessage = {
@@ -646,6 +767,12 @@ async function runGeneration(message: string) {
       );
       if (!userInput.value.trim()) userInput.value = message;
       nextTick(autoResize);
+      // Critical: clear any pending regen state so the NEXT successful
+      // generation doesn't mistakenly arm the undo toast with content
+      // that's been server-deleted. finalizeGeneration() is never called
+      // on the error path, so we have to do it here.
+      isRegenerating = false;
+      pendingUndoContent = null;
     },
   });
 }
@@ -665,6 +792,15 @@ async function finalizeGeneration(text: string) {
   abortController = null;
   await scrollToBottom();
 
+  // Snapshot the undo intent immediately, but defer arming the actual
+  // toast until after the refresh has landed the real server-side
+  // message id. Clicking Undo while temp-ast-* is still in
+  // displayMessages would PATCH a fake id and 404.
+  const undoToArm =
+    isRegenerating && pendingUndoContent ? pendingUndoContent : null;
+  isRegenerating = false;
+  pendingUndoContent = null;
+
   // Single debounced refresh. Background memory job is async on the backend —
   // give it a moment, then resync story/messages/memories once.
   if (refreshTimer) clearTimeout(refreshTimer);
@@ -679,6 +815,17 @@ async function finalizeGeneration(text: string) {
     if (!isGenerating.value) {
       displayMessages.value = [...store.sortedMessages];
     }
+    // Now that real ids are loaded, it's safe to surface the undo toast.
+    // If the user has since started a new generation, skip — that path
+    // called dismissUndo and we don't want to re-arm stale state.
+    if (undoToArm && !isGenerating.value) {
+      const newestAssistant = [...displayMessages.value]
+        .reverse()
+        .find((m) => m.role === "assistant" && !m.id.startsWith("temp-"));
+      if (newestAssistant) {
+        armUndo(newestAssistant.id, undoToArm);
+      }
+    }
   }, 3000);
 }
 
@@ -686,15 +833,109 @@ async function generate() {
   const message = userInput.value.trim();
   if (!message || isGenerating.value) return;
   userInput.value = "";
+  clearDraft();
   nextTick(autoResize);
   await runGeneration(message);
 }
+
+// ─── Draft auto-save ─────────────────────────────────────
+// Persist whatever the user is typing to localStorage so a reload, tab
+// close, or accidental nav doesn't eat their prompt. Keyed per-story so
+// different stories don't clobber each other's drafts.
+function draftKey() {
+  return `storyDraft:${storyId.value}`;
+}
+function loadDraft() {
+  try {
+    const saved = localStorage.getItem(draftKey());
+    if (saved && !userInput.value) {
+      userInput.value = saved;
+      nextTick(autoResize);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+function clearDraft() {
+  try {
+    localStorage.removeItem(draftKey());
+  } catch {
+    /* ignore */
+  }
+}
+let draftSaveTimer: ReturnType<typeof setTimeout> | null = null;
+watch(userInput, (val) => {
+  if (draftSaveTimer) clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(() => {
+    try {
+      if (val.trim()) {
+        localStorage.setItem(draftKey(), val);
+      } else {
+        localStorage.removeItem(draftKey());
+      }
+    } catch {
+      /* ignore */
+    }
+  }, 400);
+});
 
 async function retryLast() {
   if (!lastUserMessage.value || isGenerating.value) return;
   const msg = lastUserMessage.value;
   genError.value = null;
   await runGeneration(msg);
+}
+
+// ─── Regen undo ──────────────────────────────────────────
+// When the user regenerates, we snapshot the old assistant reply so they can
+// roll back if the new one is worse. Frontend-only state — lost on reload,
+// which is an acceptable trade-off vs. persisting a history column.
+// Pinned to a specific messageId so a later delete / regen / out-of-band
+// mutation can't cause Undo to overwrite an unrelated assistant bubble.
+const undoSnapshot = ref<{ messageId: string; content: string } | null>(
+  null,
+);
+let undoHideTimer: ReturnType<typeof setTimeout> | null = null;
+const canUndoRegen = computed(() => !!undoSnapshot.value);
+
+function armUndo(messageId: string, content: string) {
+  undoSnapshot.value = { messageId, content };
+  if (undoHideTimer) clearTimeout(undoHideTimer);
+  // Auto-dismiss after 2 minutes so the pill doesn't linger forever.
+  undoHideTimer = setTimeout(() => {
+    undoSnapshot.value = null;
+  }, 120_000);
+}
+
+function dismissUndo() {
+  undoSnapshot.value = null;
+  if (undoHideTimer) clearTimeout(undoHideTimer);
+}
+
+async function undoRegenerate() {
+  const snap = undoSnapshot.value;
+  if (!snap || isGenerating.value) return;
+  // Look up the exact message we captured. If it's gone (e.g. the user
+  // deleted the regenerated reply from the per-bubble trash), abort
+  // instead of silently overwriting some other assistant bubble.
+  const target = displayMessages.value.find((m) => m.id === snap.messageId);
+  if (!target || target.id.startsWith("temp-")) {
+    dismissUndo();
+    return;
+  }
+  try {
+    await messagesApi.update(storyId.value, target.id, snap.content);
+    target.content = snap.content;
+    // Pull a fresh copy so any server-side normalization lands locally.
+    await store.fetchMessages(storyId.value);
+    if (!isGenerating.value) {
+      displayMessages.value = [...store.sortedMessages];
+    }
+    dismissUndo();
+  } catch (err) {
+    genError.value =
+      err instanceof Error ? err.message : "Gagal mengembalikan respons.";
+  }
 }
 
 async function regenerateLast() {
@@ -705,6 +946,12 @@ async function regenerateLast() {
   while (i >= 0 && msgs[i]!.role !== "user") i--;
   if (i < 0) return;
   const userMsg = msgs[i]!;
+
+  // Capture the old assistant content BEFORE deleting so we can restore
+  // it if the user doesn't like the regenerated version.
+  const oldAssistant = msgs
+    .slice(i + 1)
+    .find((m) => m.role === "assistant");
 
   // Delete the stored user+assistant pair on the server BEFORE regenerating —
   // otherwise the next server-side generate call would duplicate both rows
@@ -722,6 +969,15 @@ async function regenerateLast() {
   // Drop the trailing user+assistant pair from the display so the regenerated
   // bubble takes their place visually.
   displayMessages.value = msgs.slice(0, i);
+  isRegenerating = true;
+  if (oldAssistant?.content) {
+    pendingUndoContent = oldAssistant.content;
+  }
   await runGeneration(userMsg.content);
 }
+
+// Set by regenerateLast() so finalizeGeneration() knows to arm the undo
+// affordance after the refresh round-trip lands new message ids.
+let isRegenerating = false;
+let pendingUndoContent: string | null = null;
 </script>

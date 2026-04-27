@@ -141,6 +141,55 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     return messagesService.deleteLastExchange(storyId);
   });
 
+  /**
+   * Edit a single message's content in place. Used by the in-bubble
+   * "Edit" button in the writer UI.
+   */
+  app.patch(
+    "/api/stories/:storyId/messages/:messageId",
+    async (req, reply) => {
+      const { storyId, messageId } = req.params as {
+        storyId: string;
+        messageId: string;
+      };
+      const body = validateBody(
+        z.object({ content: z.string().min(1) }),
+        req.body,
+      );
+      await storiesService.getStoryById(storyId);
+      const existing = await messagesService.getMessageById(messageId);
+      if (existing.story_id !== storyId) {
+        return reply.status(404).send({ error: "Message not found in story" });
+      }
+      const updated = await messagesService.updateMessageContent(
+        messageId,
+        body.content,
+      );
+      return updated;
+    },
+  );
+
+  /**
+   * Delete a single turn — if the message is a user prompt, its paired
+   * assistant reply is removed too. If the message is an assistant reply,
+   * only that single row is removed.
+   */
+  app.delete(
+    "/api/stories/:storyId/messages/:messageId",
+    async (req, reply) => {
+      const { storyId, messageId } = req.params as {
+        storyId: string;
+        messageId: string;
+      };
+      await storiesService.getStoryById(storyId);
+      const existing = await messagesService.getMessageById(messageId);
+      if (existing.story_id !== storyId) {
+        return reply.status(404).send({ error: "Message not found in story" });
+      }
+      return messagesService.deleteTurnStartingAt(storyId, messageId);
+    },
+  );
+
   // ─────────────────────────────────────────────
   // GENERATION (non-streaming)
   // ─────────────────────────────────────────────

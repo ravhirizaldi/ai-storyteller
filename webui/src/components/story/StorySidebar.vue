@@ -2,7 +2,7 @@
   <!-- Sidebar panel with tabs for story metadata -->
   <div class="flex flex-col h-full">
     <!-- Tabs -->
-    <div class="flex gap-1 p-2 bg-parchment-50 border-b border-ink-100 flex-wrap">
+    <div class="flex gap-1 p-2 bg-parchment-50 border-b border-ink-100 flex-wrap dark:bg-ink-900 dark:border-ink-800">
       <button
         v-for="tab in tabs"
         :key="tab.id"
@@ -19,20 +19,20 @@
     <div class="flex-1 overflow-y-auto p-3">
       <!-- SCENE STATE -->
       <div v-if="activeTab === 'scene'">
-        <h3 class="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-2">Kondisi Adegan Saat Ini</h3>
+        <h3 class="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-2 dark:text-ink-400">Kondisi Adegan Saat Ini</h3>
         <textarea
           class="textarea text-xs font-mono min-h-[160px]"
           placeholder="Tulis kondisi adegan saat ini..."
           :value="story?.current_scene_state ?? ''"
           @blur="updateField('currentSceneState', ($event.target as HTMLTextAreaElement).value)"
         />
-        <p class="text-xs text-ink-400 mt-1">Otomatis diperbarui oleh AI setelah generasi</p>
+        <p class="text-xs text-ink-400 mt-1 dark:text-ink-500">Otomatis diperbarui oleh AI setelah generasi</p>
       </div>
 
       <!-- CHARACTERS -->
       <div v-if="activeTab === 'characters'">
         <div class="flex items-center justify-between mb-3">
-          <h3 class="text-xs font-semibold text-ink-500 uppercase tracking-wider">Karakter</h3>
+          <h3 class="text-xs font-semibold text-ink-500 uppercase tracking-wider dark:text-ink-400">Karakter</h3>
           <button class="btn-secondary btn-sm" @click="showCharForm = !showCharForm" id="btn-add-character">
             <Plus class="w-3 h-3" /> Tambah
           </button>
@@ -57,14 +57,14 @@
         <div v-for="ch in characters" :key="ch.id" class="card p-3 mb-2">
           <div class="flex items-start justify-between">
             <div class="flex-1 min-w-0">
-              <p class="font-medium text-sm text-ink-800">{{ ch.name }}</p>
-              <p v-if="ch.role" class="text-xs text-ink-500">{{ ch.role }}</p>
+              <p class="font-medium text-sm text-ink-800 dark:text-ink-100">{{ ch.name }}</p>
+              <p v-if="ch.role" class="text-xs text-ink-500 dark:text-ink-400">{{ ch.role }}</p>
             </div>
             <button class="btn-ghost btn-sm p-1 text-red-400 hover:text-red-600" @click="removeCharacter(ch.id)">
               <Trash2 class="w-3 h-3" />
             </button>
           </div>
-          <p v-if="ch.current_state" class="text-xs text-ink-600 mt-1 pt-1 border-t border-ink-50">
+          <p v-if="ch.current_state" class="text-xs text-ink-600 mt-1 pt-1 border-t border-ink-50 dark:text-ink-300 dark:border-ink-800">
             {{ ch.current_state }}
           </p>
         </div>
@@ -73,7 +73,7 @@
       <!-- MEMORIES -->
       <div v-if="activeTab === 'memories'">
         <div class="flex items-center justify-between mb-3">
-          <h3 class="text-xs font-semibold text-ink-500 uppercase tracking-wider">Memori</h3>
+          <h3 class="text-xs font-semibold text-ink-500 uppercase tracking-wider dark:text-ink-400">Memori</h3>
           <button class="btn-secondary btn-sm" @click="showMemForm = !showMemForm" id="btn-add-memory">
             <Plus class="w-3 h-3" /> Tambah
           </button>
@@ -102,10 +102,10 @@
           <div class="flex items-start justify-between gap-2">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-1.5 mb-1">
-                <span class="badge bg-parchment-200 text-ink-600">{{ mem.type }}</span>
-                <span class="text-xs text-ink-400">★{{ mem.importance }}</span>
+                <span class="badge bg-parchment-200 text-ink-600 dark:bg-ink-800 dark:text-ink-300">{{ mem.type }}</span>
+                <span class="text-xs text-ink-400 dark:text-ink-500">★{{ mem.importance }}</span>
               </div>
-              <p class="text-xs text-ink-700 leading-relaxed">{{ mem.content }}</p>
+              <p class="text-xs text-ink-700 leading-relaxed dark:text-ink-200">{{ mem.content }}</p>
             </div>
             <button class="btn-ghost btn-sm p-1 text-red-400" @click="removeMemory(mem.id)">
               <Trash2 class="w-3 h-3" />
@@ -117,7 +117,7 @@
       <!-- PLOT THREADS -->
       <div v-if="activeTab === 'plot'">
         <div class="flex items-center justify-between mb-3">
-          <h3 class="text-xs font-semibold text-ink-500 uppercase tracking-wider">Plot Thread</h3>
+          <h3 class="text-xs font-semibold text-ink-500 uppercase tracking-wider dark:text-ink-400">Plot Thread</h3>
           <button class="btn-secondary btn-sm" @click="showPlotForm = !showPlotForm" id="btn-add-plot">
             <Plus class="w-3 h-3" /> Tambah
           </button>
@@ -139,10 +139,10 @@
           <div class="flex items-start justify-between gap-2">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-1.5 mb-1 flex-wrap">
-                <p class="font-medium text-xs text-ink-800">{{ pt.title }}</p>
+                <p class="font-medium text-xs text-ink-800 dark:text-ink-100">{{ pt.title }}</p>
                 <span :class="statusBadge(pt.status)">{{ pt.status }}</span>
               </div>
-              <p v-if="pt.content" class="text-xs text-ink-600">{{ pt.content }}</p>
+              <p v-if="pt.content" class="text-xs text-ink-600 dark:text-ink-300">{{ pt.content }}</p>
             </div>
             <div class="flex flex-col gap-1">
               <button
@@ -163,7 +163,7 @@
 
       <!-- SETTINGS -->
       <div v-if="activeTab === 'settings'">
-        <h3 class="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-3">Pengaturan Cepat</h3>
+        <h3 class="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-3 dark:text-ink-400">Pengaturan Cepat</h3>
         <div class="space-y-3">
           <div>
             <label class="label text-xs">Bahasa</label>

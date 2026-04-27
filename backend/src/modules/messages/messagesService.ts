@@ -64,6 +64,67 @@ export async function getMessageById(id: string): Promise<StoryMessage> {
 }
 
 /**
+ * Update a single message's content in-place. Used by the "edit message"
+ * flow in the writer UI. Only `content` is mutable; role, story, and
+ * timestamps stay pinned.
+ */
+export async function updateMessageContent(
+  id: string,
+  content: string,
+): Promise<StoryMessage> {
+  const rows = await query<StoryMessage>(
+    `UPDATE story_messages SET content = $1 WHERE id = $2 RETURNING *`,
+    [content, id],
+  );
+  const row = rows[0];
+  if (!row) throw new NotFoundError("Message", id);
+  return row;
+}
+
+/**
+ * Delete a user message AND its immediately-following assistant reply in
+ * a single transaction-ish call. Used by "Delete turn" in the UI so a
+ * user can scrub a whole exchange without leaving a dangling half.
+ *
+ * If `messageId` is NOT a user message, only that single row is removed.
+ */
+export async function deleteTurnStartingAt(
+  storyId: string,
+  messageId: string,
+): Promise<{ deleted: number }> {
+  const anchor = await queryOne<StoryMessage>(
+    `SELECT * FROM story_messages WHERE id = $1 AND story_id = $2`,
+    [messageId, storyId],
+  );
+  if (!anchor) throw new NotFoundError("Message", messageId);
+
+  if (anchor.role !== "user") {
+    await query(`DELETE FROM story_messages WHERE id = $1`, [anchor.id]);
+    return { deleted: 1 };
+  }
+
+  // Find the next message (by created_at) and, if it's an assistant reply,
+  // drop it together with the anchor. Use a subquery to compare timestamps
+  // entirely in Postgres — round-tripping anchor.created_at through the pg
+  // driver would truncate sub-millisecond precision and cause the anchor
+  // row to match itself, leaving its paired assistant reply behind.
+  const next = await queryOne<StoryMessage>(
+    `SELECT * FROM story_messages
+       WHERE story_id = $1
+         AND created_at > (SELECT created_at FROM story_messages WHERE id = $2)
+       ORDER BY created_at ASC
+       LIMIT 1`,
+    [storyId, anchor.id],
+  );
+
+  const ids = [anchor.id];
+  if (next && next.role === "assistant") ids.push(next.id);
+
+  await query(`DELETE FROM story_messages WHERE id = ANY($1::text[])`, [ids]);
+  return { deleted: ids.length };
+}
+
+/**
  * Delete the trailing assistant reply and its preceding user message for a story.
  * Used by the regenerate flow so we don't pile up duplicate turns in the DB.
  * No-op if the tail isn't a (user, assistant) pair.
