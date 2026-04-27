@@ -40,6 +40,12 @@
           </div>
         </div>
         <div class="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+          <ContextBudget
+            v-if="contextUsage"
+            :usage="contextUsage"
+            :compacting="isCompacting"
+            @compact="onCompact"
+          />
           <RouterLink
             :to="`/stories/${storyId}/bible`"
             class="btn-secondary btn-sm hidden sm:inline-flex"
@@ -402,10 +408,11 @@ import { useTheme } from "../composables/useTheme";
 import { useStoryStore } from "../stores/storyStore";
 import MessageBubble from "../components/story/MessageBubble.vue";
 import StorySidebar from "../components/story/StorySidebar.vue";
+import ContextBudget from "../components/story/ContextBudget.vue";
 import { streamStoryGeneration } from "../lib/stream";
 import { languageLabel } from "../lib/utils";
-import { messagesApi } from "../lib/api";
-import type { StoryMessage } from "../lib/api";
+import { messagesApi, storiesApi } from "../lib/api";
+import type { StoryMessage, ContextUsage } from "../lib/api";
 import { renderInlineMarkdown } from "../lib/inlineMarkdown";
 
 const route = useRoute();
@@ -428,6 +435,40 @@ const inputEl = ref<HTMLTextAreaElement | null>(null);
 const loadingOlder = ref(false);
 const lastUserMessage = ref<string | null>(null);
 const sidebarOpen = ref(false);
+
+// Context budget indicator — refreshed after every generation and
+// compaction. Lazily fetched so a stale story doesn't block render.
+const contextUsage = ref<ContextUsage | null>(null);
+const isCompacting = ref(false);
+
+async function refreshContextUsage() {
+  if (!storyId.value) return;
+  try {
+    contextUsage.value = await storiesApi.contextUsage(storyId.value);
+  } catch {
+    // Non-critical — drop the indicator rather than surface the error.
+    contextUsage.value = null;
+  }
+}
+
+async function onCompact() {
+  if (isCompacting.value) return;
+  isCompacting.value = true;
+  try {
+    const result = await storiesApi.compact(storyId.value);
+    if (result) {
+      // Re-fetch the story so story_summary / summarized_up_to land in
+      // the store, then refresh the usage indicator.
+      await store.fetchStory(storyId.value);
+    }
+    await refreshContextUsage();
+  } catch (err) {
+    genError.value =
+      err instanceof Error ? err.message : "Gagal meringkas pesan.";
+  } finally {
+    isCompacting.value = false;
+  }
+}
 const showJumpToBottom = ref(false);
 // autoStick stays on as long as the viewport is near the bottom. It flips
 // OFF the instant the user expresses intent to scroll up (wheel / touch /
@@ -586,6 +627,7 @@ onMounted(async () => {
   loadDraft();
   await scrollToBottom(true);
   nextTick(autoResize);
+  refreshContextUsage();
 
   // Attach intent listeners so the moment the user scrolls up (wheel,
   // touch drag, arrow keys) we stop force-sticking to bottom, even if
@@ -826,6 +868,9 @@ async function finalizeGeneration(text: string) {
         armUndo(newestAssistant.id, undoToArm);
       }
     }
+    // Recompute context usage after the turn lands so the indicator
+    // reflects the new message count + token estimate.
+    refreshContextUsage();
   }, 3000);
 }
 

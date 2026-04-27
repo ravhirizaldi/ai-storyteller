@@ -1,6 +1,7 @@
 import { getStoryById } from "../stories/storiesService";
 import { getCharactersByStory } from "../characters/charactersService";
 import { getRecentMessages, createMessage } from "../messages/messagesService";
+import { KEEP_LAST_N_TURNS } from "./compactService";
 import {
   searchMemoriesByText,
   getPinnedMemories,
@@ -90,7 +91,15 @@ ${story.current_timeline_state}`);
     sections.push(`## ACTIVE PLOT THREADS\n${threadText}`);
   }
 
-  // 8. Relevant Long-Term Memories
+  // 8. Story-so-far summary (only present after compact). Older messages
+  //    folded into this summary are excluded from the raw message list
+  //    below, saving tokens without losing continuity.
+  if (story.story_summary) {
+    sections.push(`## STORY SO FAR (CONDENSED)
+${story.story_summary}`);
+  }
+
+  // 9. Relevant Long-Term Memories
   if (relevantMemories.length > 0) {
     sections.push(
       `## RELEVANT LONG-TERM MEMORIES\n${relevantMemories.map((m) => `- ${m}`).join("\n")}`,

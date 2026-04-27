@@ -26,13 +26,46 @@ export async function getMessagesByStory(
 export async function getRecentMessages(
   storyId: string,
   limit = 12,
+  applyCompactionCutoff = false,
 ): Promise<StoryMessage[]> {
-  const rows = await query<StoryMessage>(
-    `SELECT * FROM story_messages WHERE story_id = $1 ORDER BY created_at DESC LIMIT $2`,
-    [storyId, limit],
-  );
+  // If the story has been compacted, we need to exclude anything already
+  // folded into the summary. We pull the cutoff via a subquery against
+  // the stories table so the comparison stays in PostgreSQL at full
+  // TIMESTAMPTZ µs precision. Round-tripping the cutoff through a JS
+  // Date would truncate to ms and let the last summarized message leak
+  // back into the live context.
+  const params: unknown[] = [storyId];
+  let q = `SELECT * FROM story_messages WHERE story_id = $1`;
+  if (applyCompactionCutoff) {
+    q += ` AND (
+      (SELECT summarized_up_to_created_at FROM stories WHERE id = $1) IS NULL
+      OR created_at > (SELECT summarized_up_to_created_at FROM stories WHERE id = $1)
+    )`;
+  }
+  q += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+  params.push(limit);
+  const rows = await query<StoryMessage>(q, params);
   // Return in chronological order
   return rows.reverse();
+}
+
+/**
+ * Fetch all messages older than (or up to) a given cutoff — used by the
+ * compact job to build a single "story so far" summary. Returned in
+ * chronological order. `keepLastN` lets the caller preserve the most
+ * recent turns OUTSIDE the summary so the stream still has live context.
+ */
+export async function getMessagesForSummary(
+  storyId: string,
+  keepLastN: number,
+): Promise<StoryMessage[]> {
+  // Grab all messages, chop off the tail we want to keep raw.
+  const all = await query<StoryMessage>(
+    `SELECT * FROM story_messages WHERE story_id = $1 ORDER BY created_at ASC`,
+    [storyId],
+  );
+  if (all.length <= keepLastN) return [];
+  return all.slice(0, all.length - keepLastN);
 }
 
 export interface CreateMessageInput {
