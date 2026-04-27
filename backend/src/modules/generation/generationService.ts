@@ -219,15 +219,14 @@ export async function generateStoryStream(
 ): Promise<void> {
   logger.info({ storyId: input.storyId }, "Story generation start (stream)");
 
-  // 1. Load context in parallel. Fetch story first (so we can honor any
-  //    compaction cutoff when pulling recent messages), then fan out the
-  //    rest in parallel.
-  const story = await getStoryById(input.storyId);
-  const [characters, activePlotThreads, recentMessages] = await Promise.all([
-    getCharactersByStory(input.storyId),
-    getActivePlotThreads(input.storyId),
-    getRecentMessages(input.storyId, KEEP_LAST_N_TURNS, true),
-  ]);
+  // 1. Load context in parallel
+  const [story, characters, activePlotThreads, recentMessages] =
+    await Promise.all([
+      getStoryById(input.storyId),
+      getCharactersByStory(input.storyId),
+      getActivePlotThreads(input.storyId),
+      getRecentMessages(input.storyId, 10),
+    ]);
 
   // 2. Pull relevant memories: pinned-always + FTS-matched by user message.
   //    Pinned entries are surfaced unconditionally so the model can't "forget"
@@ -336,12 +335,13 @@ export async function generateStoryText(input: GenerateStoryInput): Promise<{
 }> {
   logger.info({ storyId: input.storyId }, "Story generation start (text)");
 
-  const story = await getStoryById(input.storyId);
-  const [characters, activePlotThreads, recentMessages] = await Promise.all([
-    getCharactersByStory(input.storyId),
-    getActivePlotThreads(input.storyId),
-    getRecentMessages(input.storyId, KEEP_LAST_N_TURNS, true),
-  ]);
+  const [story, characters, activePlotThreads, recentMessages] =
+    await Promise.all([
+      getStoryById(input.storyId),
+      getCharactersByStory(input.storyId),
+      getActivePlotThreads(input.storyId),
+      getRecentMessages(input.storyId, 10),
+    ]);
 
   // Union pinned + FTS-matched memories, dedup by id. Matches the
   // non-streaming path so the model sees the same memory shape.
