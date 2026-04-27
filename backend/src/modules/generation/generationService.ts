@@ -225,7 +225,7 @@ export async function generateStoryStream(
       getStoryById(input.storyId),
       getCharactersByStory(input.storyId),
       getActivePlotThreads(input.storyId),
-      getRecentMessages(input.storyId, 10),
+      getRecentMessages(input.storyId, KEEP_LAST_N_TURNS, true),
     ]);
 
   // 2. Pull relevant memories: pinned-always + FTS-matched by user message.
@@ -340,7 +340,7 @@ export async function generateStoryText(input: GenerateStoryInput): Promise<{
       getStoryById(input.storyId),
       getCharactersByStory(input.storyId),
       getActivePlotThreads(input.storyId),
-      getRecentMessages(input.storyId, 10),
+      getRecentMessages(input.storyId, KEEP_LAST_N_TURNS, true),
     ]);
 
   // Union pinned + FTS-matched memories, dedup by id. Matches the
